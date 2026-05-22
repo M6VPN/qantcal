@@ -64,7 +64,7 @@ private:
 	void save_shortening_factor();
 	void set_frequency_from_band(int index);
 	void show_about();
-	void show_print_placeholder();
+	void print_guide();
 	void target_item_changed(QListWidgetItem *item);
 	void update_diagram_item_descriptor(const project::DiagramItemDescriptor &descriptor);
 	void update_project_title();

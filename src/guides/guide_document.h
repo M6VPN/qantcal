@@ -6,10 +6,12 @@
 
 #include "calculators/antenna_calculator.h"
 #include "calculators/rf_units.h"
+#include "guides/guide_section.h"
 #include "project/antenna_project.h"
 
 #include <QString>
 #include <QStringList>
+#include <QVector>
 
 namespace qantcal::guides {
 
@@ -18,9 +20,14 @@ struct GuideDocument {
 	QString band_text;
 	QString dimensions_text;
 	QString frequency_text;
+	QString generated_utc;
 	QString notes_text;
+	QString project_notes;
+	QString project_title;
 	QString title;
+	double velocity_factor = calculators::DEFAULT_WIRE_FACTOR;
 	calculators::LengthUnit length_unit = calculators::LengthUnit::Metres;
+	QVector<GuideSection> sections;
 };
 
 GuideDocument create_guide_document(

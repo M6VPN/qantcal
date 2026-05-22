@@ -9,6 +9,7 @@
 #include "project/antenna_project.h"
 
 #include <QGraphicsScene>
+#include <QPainter>
 #include <QPointF>
 
 #include <functional>
@@ -29,6 +30,7 @@ public:
 		const project::AntennaProject &project,
 		calculators::LengthUnit length_unit
 	);
+	void render_to_painter(QPainter &painter, const QRectF &target_rect);
 	void set_item_moved_callback(std::function<void(const project::DiagramItemDescriptor &)> callback);
 	void set_undo_stack(QUndoStack *stack);
 

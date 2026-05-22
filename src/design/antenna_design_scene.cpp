@@ -241,6 +241,24 @@ AntennaDesignScene::contextMenuEvent(QGraphicsSceneContextMenuEvent *event)
 }
 
 void
+AntennaDesignScene::render_to_painter(QPainter &painter, const QRectF &target_rect)
+{
+	if (!painter.isActive())
+		return;
+
+	if (items().isEmpty()) {
+		painter.save();
+		painter.setPen(QPen(QColor(120, 120, 120), 1.5));
+		painter.drawRect(target_rect);
+		painter.drawText(target_rect.adjusted(10.0, 10.0, -10.0, -10.0), Qt::AlignLeft | Qt::AlignTop, QStringLiteral("No diagram available"));
+		painter.restore();
+		return;
+	}
+
+	render(&painter, target_rect, itemsBoundingRect(), Qt::KeepAspectRatio);
+}
+
+void
 AntennaDesignScene::mousePressEvent(QGraphicsSceneMouseEvent *event)
 {
 	moving_item = itemAt(event->scenePos(), QTransform());

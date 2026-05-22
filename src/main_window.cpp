@@ -28,6 +28,8 @@
 #include <QListWidget>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QPrintDialog>
+#include <QPrinter>
 #include <QPushButton>
 #include <QSignalBlocker>
 #include <QSplitter>
@@ -237,7 +239,7 @@ MainWindow::create_actions()
 	connect(open_action, &QAction::triggered, this, &MainWindow::open_project);
 	connect(save_action, &QAction::triggered, this, &MainWindow::save_project);
 	connect(save_as_action, &QAction::triggered, this, &MainWindow::save_project_as);
-	connect(print_action, &QAction::triggered, this, &MainWindow::show_print_placeholder);
+	connect(print_action, &QAction::triggered, this, &MainWindow::print_guide);
 	connect(export_pdf_action, &QAction::triggered, this, &MainWindow::export_pdf);
 	connect(exit_action, &QAction::triggered, this, &QWidget::close);
 	connect(about_action, &QAction::triggered, this, &MainWindow::show_about);
@@ -703,7 +705,7 @@ MainWindow::export_pdf()
 		: guides::create_project_guide_document(current_project, current_length_unit);
 	const guides::GuideRenderer renderer;
 
-	if (renderer.render_to_pdf(document, path)) {
+	if (renderer.render_to_pdf(document, path, guides::default_export_options())) {
 		statusBar()->showMessage(QStringLiteral("Exported PDF: %1").arg(path));
 		return;
 	}
@@ -913,10 +915,30 @@ MainWindow::show_about()
 }
 
 void
-MainWindow::show_print_placeholder()
+MainWindow::print_guide()
 {
-	/* TODO: Build printable guide rendering through Qt Print Support. */
-	QMessageBox::information(this, QStringLiteral("Print Guide"), QStringLiteral("Printable guide output is planned for a later pass."));
+	if (!latest_result.ok && current_project.elements.isEmpty()) {
+		statusBar()->showMessage(QStringLiteral("Print failed: calculate a valid antenna first"));
+		return;
+	}
+
+	build_project_from_ui();
+	const guides::GuideDocument document = current_project.elements.isEmpty()
+		? guides::create_guide_document(latest_result, current_length_unit, band_box->currentText())
+		: guides::create_project_guide_document(current_project, current_length_unit);
+	QPrinter printer(QPrinter::HighResolution);
+	QPrintDialog dialog(&printer, this);
+
+	if (dialog.exec() != QDialog::Accepted)
+		return;
+
+	const guides::GuideRenderer renderer;
+	if (renderer.render_to_printer(document, printer, guides::default_export_options())) {
+		statusBar()->showMessage(QStringLiteral("Guide sent to printer"));
+		return;
+	}
+
+	statusBar()->showMessage(QStringLiteral("Print failed"));
 }
 
 calculators::AntennaCalculationInput

@@ -18,8 +18,12 @@ add_library(qantcal_core
 	calculators/swr_calculator.h
 	guides/guide_document.cpp
 	guides/guide_document.h
+	guides/guide_export_options.cpp
+	guides/guide_export_options.h
 	guides/guide_renderer.cpp
 	guides/guide_renderer.h
+	guides/guide_section.cpp
+	guides/guide_section.h
 	project/antenna_project.cpp
 	project/antenna_project.h
 	project/project_file_io.cpp
@@ -39,6 +43,7 @@ target_link_libraries(qantcal_core
 	PUBLIC
 		Qt6::Core
 		Qt6::Gui
+		Qt6::PrintSupport
 )
 
 add_library(qantcal_ui
@@ -65,7 +70,6 @@ target_link_libraries(qantcal_ui
 	PUBLIC
 		qantcal_core
 		Qt6::Widgets
-		Qt6::PrintSupport
 )
 
 qt_add_executable(qantcal

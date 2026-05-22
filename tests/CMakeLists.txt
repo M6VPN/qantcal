@@ -17,6 +17,14 @@ add_executable(test_ham_band
 	test_ham_band.cpp
 )
 
+add_executable(test_guide_document
+	test_guide_document.cpp
+)
+
+add_executable(test_guide_renderer
+	test_guide_renderer.cpp
+)
+
 add_executable(test_lc_resonance_calculator
 	test_lc_resonance_calculator.cpp
 )
@@ -57,6 +65,16 @@ target_link_libraries(test_coil_calculator
 )
 
 target_link_libraries(test_ham_band
+	PRIVATE
+		qantcal_core
+)
+
+target_link_libraries(test_guide_document
+	PRIVATE
+		qantcal_core
+)
+
+target_link_libraries(test_guide_renderer
 	PRIVATE
 		qantcal_core
 )
@@ -109,6 +127,16 @@ add_test(
 add_test(
 	NAME test_ham_band
 	COMMAND test_ham_band
+)
+
+add_test(
+	NAME test_guide_document
+	COMMAND test_guide_document
+)
+
+add_test(
+	NAME test_guide_renderer
+	COMMAND test_guide_renderer
 )
 
 add_test(
