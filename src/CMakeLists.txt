@@ -82,3 +82,9 @@ target_link_libraries(qantcal
 	PRIVATE
 		qantcal_ui
 )
+
+install(
+	TARGETS qantcal
+	RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+	BUNDLE DESTINATION .
+)

@@ -182,3 +182,21 @@ add_test(
 	NAME test_yagi_calculator
 	COMMAND test_yagi_calculator
 )
+
+set_tests_properties(
+	test_antenna_calculator
+	test_antenna_measurement
+	test_coil_calculator
+	test_ham_band
+	test_guide_document
+	test_guide_renderer
+	test_lc_resonance_calculator
+	test_radio_horizon_calculator
+	test_project_file_io
+	test_project_serializer
+	test_rf_units
+	test_swr_calculator
+	test_yagi_calculator
+	PROPERTIES
+		ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+)

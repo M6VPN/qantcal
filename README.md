@@ -1,5 +1,7 @@
 # qantcal
 
+[![CI](https://github.com/M6VPN/qantcal/actions/workflows/ci.yml/badge.svg)](https://github.com/M6VPN/qantcal/actions/workflows/ci.yml)
+
 qantcal is an early Qt6 desktop scaffold for amateur radio and RF antenna calculation. The goal is to help radio amateurs produce starting dimensions for common antennas, sketch simple designs, and later print practical build guides.
 
 The project is in the first planning and scaffold stage. Current calculations are simple free-space formulas with a configurable shortening factor, so results are starting points only. Real antennas still need trimming, measuring, and checking in their final installation.
@@ -10,6 +12,7 @@ The project is in the first planning and scaffold stage. Current calculations ar
 - [Planned Features](#planned-features)
 - [Building](#building)
 - [Documentation](#documentation)
+- [Packaging](#packaging)
 - [License](#license)
 
 ## Status
@@ -52,6 +55,10 @@ See [BUILDING.md](BUILDING.md) for platform notes and CMake commands.
 
 - [Project plan](docs/PROJECT_PLAN.md)
 - [Formulas and sources](docs/FORMULAS_AND_SOURCES.md)
+
+## Packaging
+
+Packaging is early groundwork only. See [PACKAGING.md](docs/PACKAGING.md) for current install and deployment notes.
 
 ## License
 

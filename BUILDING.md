@@ -11,7 +11,10 @@ qantcal uses C++17, CMake, and Qt6 Widgets. Exact Qt package names vary by distr
 - [FreeBSD](#freebsd)
 - [Windows](#windows)
 - [Generic CMake Build](#generic-cmake-build)
+- [CMake Presets](#cmake-presets)
+- [Helper Scripts](#helper-scripts)
 - [Tests](#tests)
+- [Install](#install)
 
 ## Ubuntu and Debian
 
@@ -73,8 +76,58 @@ cmake --build build
 ./build/src/qantcal
 ```
 
+## CMake Presets
+
+The repository includes CMake presets for common local and CI builds:
+
+```bash
+cmake --preset debug
+cmake --build --preset debug
+ctest --preset debug
+```
+
+The `release` and `ci-debug` presets are also available. Presets do not hard-code local Qt paths.
+
+Manual CMake commands remain supported for older CMake versions. Presets require a CMake version with preset support.
+
+## Helper Scripts
+
+Small local wrappers are provided for the default Debug build:
+
+```bash
+./scripts/configure.sh
+./scripts/build.sh
+./scripts/test.sh
+```
+
+The scripts accept `BUILD_DIR` and `BUILD_TYPE` environment variables:
+
+```bash
+BUILD_DIR=build-release BUILD_TYPE=Release ./scripts/configure.sh
+BUILD_DIR=build-release ./scripts/build.sh
+BUILD_DIR=build-release ./scripts/test.sh
+```
+
+The scripts do not install packages and do not use `sudo`.
+
 ## Tests
 
 ```bash
 ctest --test-dir build --output-on-failure
 ```
+
+For headless systems or CI, use Qt's offscreen platform:
+
+```bash
+QT_QPA_PLATFORM=offscreen ctest --test-dir build --output-on-failure
+```
+
+## Install
+
+Install to a local prefix or staging directory:
+
+```bash
+cmake --install build --prefix "$PWD/package-root"
+```
+
+See [Packaging qantcal](docs/PACKAGING.md) for current deployment notes.
