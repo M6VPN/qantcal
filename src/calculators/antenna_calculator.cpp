@@ -3,13 +3,14 @@
 
 #include "antenna_calculator.h"
 
+#include "rf_units.h"
+
 #include <cmath>
 
 namespace qantcal::calculators {
 
 namespace {
 
-constexpr double FEET_PER_METRE = 3.280839895;
 constexpr double MIN_FREQUENCY_MHZ = 0.001;
 constexpr double MAX_FREQUENCY_MHZ = 300000.0;
 constexpr double MIN_LENGTH_M = 0.001;
@@ -231,36 +232,12 @@ calculate_antenna(const AntennaCalculationInput &input)
 }
 
 double
-feet_to_metres(double feet)
-{
-	return feet / FEET_PER_METRE;
-}
-
-double
 frequency_from_wavelength_mhz(double wavelength_m)
 {
 	if (!std::isfinite(wavelength_m) || wavelength_m <= 0.0)
 		return 0.0;
 
 	return hz_to_mhz(SPEED_OF_LIGHT_MPS / wavelength_m);
-}
-
-double
-hz_to_mhz(double hz)
-{
-	return hz / 1000000.0;
-}
-
-double
-metres_to_feet(double metres)
-{
-	return metres * FEET_PER_METRE;
-}
-
-double
-mhz_to_hz(double mhz)
-{
-	return mhz * 1000000.0;
 }
 
 double

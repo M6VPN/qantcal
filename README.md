@@ -20,8 +20,10 @@ The first pass includes:
 
 - a Qt Widgets main window
 - basic antenna calculator inputs with a convenience ham band selector
+- selectable length units with saved preferences
 - simple schematic diagrams using `QGraphicsScene` and `QGraphicsView`
 - simple dipole, inverted Vee, vertical, EFHW, and loop calculations
+- basic PDF guide export foundation
 - a small pure C++ calculator test executable
 
 ## Planned Features

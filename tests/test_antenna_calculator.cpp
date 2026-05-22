@@ -2,6 +2,7 @@
 // tests/test_antenna_calculator.cpp
 
 #include "calculators/antenna_calculator.h"
+#include "calculators/rf_units.h"
 
 #include <cassert>
 #include <cmath>
@@ -94,6 +95,25 @@ test_invalid_factor_below_minimum()
 }
 
 void
+test_invalid_negative_converted_length()
+{
+	qantcal::calculators::AntennaCalculationInput input;
+
+	input.antenna_type = qantcal::calculators::AntennaType::HalfWaveDipole;
+	input.design_mode = qantcal::calculators::DesignMode::LengthToFrequency;
+	input.length_m = qantcal::calculators::length_unit_to_metres(
+		-2000.0,
+		qantcal::calculators::LengthUnit::Centimetres
+	);
+
+	const qantcal::calculators::AntennaCalculationResult result =
+		qantcal::calculators::calculate_antenna(input);
+
+	assert(!result.ok);
+	assert(!result.error.empty());
+}
+
+void
 test_invalid_negative_frequency()
 {
 	qantcal::calculators::AntennaCalculationInput input;
@@ -137,6 +157,25 @@ test_quarter_wave_14_2_mhz()
 }
 
 void
+test_reverse_centimetres_to_frequency()
+{
+	qantcal::calculators::AntennaCalculationInput input;
+
+	input.antenna_type = qantcal::calculators::AntennaType::HalfWaveDipole;
+	input.design_mode = qantcal::calculators::DesignMode::LengthToFrequency;
+	input.length_m = qantcal::calculators::length_unit_to_metres(
+		2005.7,
+		qantcal::calculators::LengthUnit::Centimetres
+	);
+
+	const qantcal::calculators::AntennaCalculationResult result =
+		qantcal::calculators::calculate_antenna(input);
+
+	assert(result.ok);
+	assert(near_value(result.frequency_mhz, 7.1, 0.005));
+}
+
+void
 test_reverse_length_to_frequency()
 {
 	qantcal::calculators::AntennaCalculationInput input;
@@ -162,9 +201,11 @@ main()
 	test_full_wave_loop();
 	test_invalid_factor_above_one();
 	test_invalid_factor_below_minimum();
+	test_invalid_negative_converted_length();
 	test_invalid_negative_frequency();
 	test_invalid_zero_length();
 	test_quarter_wave_14_2_mhz();
+	test_reverse_centimetres_to_frequency();
 	test_reverse_length_to_frequency();
 
 	return 0;

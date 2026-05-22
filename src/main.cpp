@@ -9,6 +9,10 @@ int
 main(int argc, char *argv[])
 {
 	QApplication app(argc, argv);
+
+	QCoreApplication::setOrganizationName(QStringLiteral("M6VPN"));
+	QCoreApplication::setApplicationName(QStringLiteral("qantcal"));
+
 	qantcal::MainWindow window;
 
 	window.show();

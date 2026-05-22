@@ -5,6 +5,7 @@
 #define QANTCAL_DESIGN_ANTENNA_DESIGN_SCENE_H
 
 #include "calculators/antenna_calculator.h"
+#include "calculators/rf_units.h"
 
 #include <QGraphicsScene>
 
@@ -14,7 +15,10 @@ class AntennaDesignScene : public QGraphicsScene {
 public:
 	explicit AntennaDesignScene(QObject *parent = nullptr);
 
-	void show_antenna_diagram(const calculators::AntennaCalculationResult &result);
+	void show_antenna_diagram(
+		const calculators::AntennaCalculationResult &result,
+		calculators::LengthUnit length_unit
+	);
 };
 
 }

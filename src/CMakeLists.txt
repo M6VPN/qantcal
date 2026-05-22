@@ -8,11 +8,23 @@ add_library(qantcal_core
 	calculators/ham_band.h
 	calculators/rf_units.cpp
 	calculators/rf_units.h
+	guides/guide_document.cpp
+	guides/guide_document.h
+	guides/guide_renderer.cpp
+	guides/guide_renderer.h
+	settings/app_settings.cpp
+	settings/app_settings.h
 )
 
 target_include_directories(qantcal_core
 	PUBLIC
 		${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+target_link_libraries(qantcal_core
+	PUBLIC
+		Qt6::Core
+		Qt6::Gui
 )
 
 add_library(qantcal_ui
@@ -30,8 +42,6 @@ target_include_directories(qantcal_ui
 target_link_libraries(qantcal_ui
 	PUBLIC
 		qantcal_core
-		Qt6::Core
-		Qt6::Gui
 		Qt6::Widgets
 		Qt6::PrintSupport
 )

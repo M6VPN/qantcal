@@ -6,6 +6,7 @@
 
 #include "calculators/antenna_calculator.h"
 #include "design/antenna_design_scene.h"
+#include "settings/app_settings.h"
 
 #include <QMainWindow>
 
@@ -24,25 +25,35 @@ public:
 
 private:
 	void calculate();
+	void change_length_unit(int index);
+	void configure_length_input();
 	void create_actions();
 	void create_central_widget();
+	void export_pdf();
 	void populate_band_selector();
+	void restore_settings();
+	void save_antenna_type();
+	void save_shortening_factor();
 	void set_frequency_from_band(int index);
 	void show_about();
-	void show_export_pdf_placeholder();
 	void show_print_placeholder();
 	calculators::AntennaCalculationInput current_input() const;
+	calculators::LengthUnit selected_length_unit() const;
 
 	QComboBox *antenna_type_box = nullptr;
 	QComboBox *band_box = nullptr;
 	QComboBox *design_mode_box = nullptr;
+	QComboBox *length_unit_box = nullptr;
 	QDoubleSpinBox *frequency_box = nullptr;
 	QDoubleSpinBox *length_box = nullptr;
 	QDoubleSpinBox *velocity_factor_box = nullptr;
 	QGraphicsView *design_view = nullptr;
 	QPushButton *calculate_button = nullptr;
 	QTextEdit *result_text = nullptr;
+	calculators::AntennaCalculationResult latest_result;
+	calculators::LengthUnit current_length_unit = calculators::LengthUnit::Metres;
 	design::AntennaDesignScene *design_scene = nullptr;
+	settings::AppSettings app_settings;
 };
 
 }
