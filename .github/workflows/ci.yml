@@ -1,0 +1,74 @@
+# qantcal - Developed by M6VPN (M6VPN@tuta.com)
+# .github/workflows/ci.yml
+
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    name: Linux
+    runs-on: ubuntu-latest
+
+    env:
+      QT_QPA_PLATFORM: offscreen
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build qt6-base-dev qt6-base-dev-tools
+
+      - name: Configure
+        run: cmake --preset ci-debug
+
+      - name: Build
+        run: cmake --build --preset ci-debug
+
+      - name: Test
+        run: ctest --test-dir build/ci-debug --output-on-failure
+
+  windows:
+    name: Windows
+    runs-on: windows-latest
+
+    env:
+      QT_QPA_PLATFORM: offscreen
+
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # MSYS2 provides a practical Qt6 Widgets/PrintSupport CMake toolchain on hosted Windows runners.
+      - name: Install MSYS2 dependencies
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-qt6-base
+
+      - name: Configure
+        run: cmake --preset ci-debug
+
+      - name: Build
+        run: cmake --build --preset ci-debug
+
+      - name: Test
+        run: ctest --test-dir build/ci-debug --output-on-failure

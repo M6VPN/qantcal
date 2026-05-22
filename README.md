@@ -2,14 +2,13 @@
 
 [![CI](https://github.com/M6VPN/qantcal/actions/workflows/ci.yml/badge.svg)](https://github.com/M6VPN/qantcal/actions/workflows/ci.yml)
 
-qantcal is an early Qt6 desktop scaffold for amateur radio and RF antenna calculation. The goal is to help radio amateurs produce starting dimensions for common antennas, sketch simple designs, and later print practical build guides.
-
-The project is in the first planning and scaffold stage. Current calculations are simple free-space formulas with a configurable shortening factor, so results are starting points only. Real antennas still need trimming, measuring, and checking in their final installation.
+qantcal is an in-progress Qt6 desktop application for amateur radio / RF antenna design and calculation. The goal is to help radio amateurs produce starting dimensions for common antennas, sketch simple designs, and print practical build guides.
 
 ## Table of Contents
 
 - [Status](#status)
 - [Planned Features](#planned-features)
+- [Screenshots](#screenshots)
 - [Building](#building)
 - [Documentation](#documentation)
 - [Packaging](#packaging)
@@ -17,25 +16,32 @@ The project is in the first planning and scaffold stage. Current calculations ar
 
 ## Status
 
-This repository currently contains the initial C++17, Qt6 Widgets, CMake, and test scaffold. It is not a complete antenna design package yet.
+qantcal uses C++17 and Qt6 Widgets; it's very buggy at the moment but can still serve as a semi-decent reference.
 
-The first pass includes:
+Progress:
 
-- a Qt Widgets main window
+- Qt Widgets main window
 - basic antenna calculator inputs with a convenience ham band selector
 - selectable length units with saved preferences
 - qantcal JSON project save/load groundwork
 - simple schematic diagrams using `QGraphicsScene` and `QGraphicsView`
 - simple dipole, inverted Vee, vertical, EFHW, and loop calculations
 - first-pass Yagi starting dimensions for 2 to 10 elements
-- basic PDF guide export foundation
-- printable guide PDF export with project sections, assumptions, and safety notes
+- basic PDF export
+- printable PDF export with project sections, assumptions, and safety notes
 - RF helper calculators for air-core coils, LC resonance, SWR/reflected power, and radio horizon
 - a small pure C++ calculator test executable
 
-## Planned Features
+## Screenshots
 
-qantcal is planned to grow into a practical RF calculator and antenna design aid with:
+![Dipole design](screens/qantcal-dipole.png)
+
+![Yagi design](screens/qantcal-yagi.png)
+
+![Calculators](screens/qantcal-calc.png)
+
+
+## Planned Features
 
 - antenna calculators for common wire and vertical antennas
 - reverse length-to-frequency calculators
