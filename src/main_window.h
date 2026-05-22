@@ -74,6 +74,7 @@ private:
 	void update_project_title();
 	void update_target_list();
 	void update_yagi_controls();
+	double project_restore_frequency_mhz() const;
 	calculators::AntennaCalculationInput current_input() const;
 	calculators::YagiDesignInput current_yagi_input() const;
 	calculators::LengthUnit selected_length_unit() const;

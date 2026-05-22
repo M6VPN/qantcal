@@ -168,7 +168,7 @@ AntennaDesignScene::show_yagi_diagram(
 	const QPen wire_pen(QColor(30, 90, 150), 4.0);
 	const QPen feed_pen(QColor(170, 60, 40), 3.0);
 	const QBrush feed_brush(QColor(210, 80, 50));
-	const QFont label_font(QStringLiteral("Sans Serif"), 9);
+	const QFont label_font(QStringLiteral("Sans Serif"), 8);
 	const double left = -250.0;
 	const double right = 250.0;
 	const double boom_y = 0.0;
@@ -197,9 +197,11 @@ AntennaDesignScene::show_yagi_diagram(
 	addLine(right, -38.0, right - 13.0, -31.0, feed_pen);
 	addText(QStringLiteral("forward direction"), label_font)->setPos(right - 135.0, -64.0);
 
-	for (const calculators::YagiElement &element : result.elements) {
+	for (int i = 0; i < result.elements.size(); ++i) {
+		const calculators::YagiElement &element = result.elements[i];
 		const double x = left + (element.position_from_reflector_metres * scale);
 		const double half_pixels = 45.0 + (element.length_metres / result.elements[0].length_metres * 55.0);
+		const double label_y = i % 2 == 0 ? half_pixels + 8.0 : -half_pixels - 42.0;
 		QGraphicsLineItem *line = addLine(x, -half_pixels, x, half_pixels, wire_pen);
 		line->setFlag(QGraphicsItem::ItemIsSelectable, true);
 		if (element.role == calculators::YagiElementRole::Driven)
@@ -209,7 +211,7 @@ AntennaDesignScene::show_yagi_diagram(
 				.arg(element.label)
 				.arg(QString::fromStdString(calculators::format_length(element.length_metres, length_unit))),
 			label_font
-		)->setPos(x - 38.0, half_pixels + 8.0);
+		)->setPos(x - 34.0, label_y);
 	}
 }
 

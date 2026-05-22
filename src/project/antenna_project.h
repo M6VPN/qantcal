@@ -44,6 +44,7 @@ struct YagiProjectDesign {
 	bool enabled = false;
 	int element_count = 3;
 	calculators::YagiPreset preset = calculators::YagiPreset::Conservative;
+	double frequency_mhz = 0.0;
 	double element_shortening_factor = 0.95;
 	double element_diameter_metres = 0.010;
 	double boom_correction_metres = 0.0;

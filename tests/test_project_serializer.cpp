@@ -6,6 +6,7 @@
 #include <QJsonArray>
 
 #include <cassert>
+#include <cmath>
 
 namespace {
 
@@ -48,6 +49,12 @@ sample_project(int target_count)
 	return project;
 }
 
+bool
+near(double actual, double expected)
+{
+	return std::fabs(actual - expected) <= 0.000001;
+}
+
 qantcal::project::AntennaProject
 sample_yagi_project()
 {
@@ -57,6 +64,7 @@ sample_yagi_project()
 	project.yagi_design.enabled = true;
 	project.yagi_design.element_count = 5;
 	project.yagi_design.preset = qantcal::calculators::YagiPreset::Compact;
+	project.yagi_design.frequency_mhz = 144.3;
 	project.yagi_design.element_shortening_factor = 0.94;
 	project.yagi_design.element_diameter_metres = 0.012;
 	project.yagi_design.boom_correction_metres = 0.005;
@@ -230,9 +238,32 @@ test_yagi_design_round_trip()
 	assert(parsed.yagi_design.enabled);
 	assert(parsed.yagi_design.element_count == 5);
 	assert(parsed.yagi_design.preset == qantcal::calculators::YagiPreset::Compact);
-	assert(parsed.yagi_design.element_shortening_factor == 0.94);
-	assert(parsed.yagi_design.element_diameter_metres == 0.012);
-	assert(parsed.yagi_design.boom_correction_metres == 0.005);
+	assert(near(parsed.yagi_design.frequency_mhz, 144.3));
+	assert(near(parsed.yagi_design.element_shortening_factor, 0.94));
+	assert(near(parsed.yagi_design.element_diameter_metres, 0.012));
+	assert(near(parsed.yagi_design.boom_correction_metres, 0.005));
+}
+
+void
+test_yagi_design_missing_optional_fields_defaults()
+{
+	QJsonObject object = qantcal::project::to_json(sample_yagi_project());
+	QJsonObject yagi = object.value(QStringLiteral("yagiDesign")).toObject();
+	qantcal::project::AntennaProject parsed;
+	QString error;
+
+	yagi.remove(QStringLiteral("boomCorrectionMetres"));
+	yagi.remove(QStringLiteral("elementDiameterMetres"));
+	yagi.remove(QStringLiteral("frequencyMhz"));
+	yagi.remove(QStringLiteral("preset"));
+	object.insert(QStringLiteral("yagiDesign"), yagi);
+
+	assert(qantcal::project::from_json(object, parsed, error));
+	assert(parsed.yagi_design.enabled);
+	assert(parsed.yagi_design.boom_correction_metres == 0.0);
+	assert(parsed.yagi_design.element_diameter_metres == 0.010);
+	assert(parsed.yagi_design.frequency_mhz == 0.0);
+	assert(parsed.yagi_design.preset == qantcal::calculators::YagiPreset::Conservative);
 }
 
 }
@@ -252,6 +283,7 @@ main()
 	test_unknown_field_ignored();
 	test_unsupported_schema_rejected();
 	test_yagi_design_round_trip();
+	test_yagi_design_missing_optional_fields_defaults();
 
 	return 0;
 }

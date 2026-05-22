@@ -69,6 +69,36 @@ test_invalid_shortening_factor_fails()
 }
 
 void
+test_boom_correction_reduces_length()
+{
+	qantcal::calculators::YagiDesignInput input;
+
+	input.frequency_mhz = 144.3;
+	input.element_count = 3;
+
+	const qantcal::calculators::YagiDesignResult uncorrected =
+		qantcal::calculators::calculate_yagi(input);
+	input.boom_correction_metres = 0.01;
+	const qantcal::calculators::YagiDesignResult corrected =
+		qantcal::calculators::calculate_yagi(input);
+
+	assert(uncorrected.ok);
+	assert(corrected.ok);
+	assert(near(uncorrected.elements[0].length_metres - corrected.elements[0].length_metres, 0.01, 0.000001));
+}
+
+void
+test_invalid_boom_correction_fails()
+{
+	qantcal::calculators::YagiDesignInput input;
+
+	input.frequency_mhz = 144.3;
+	input.boom_correction_metres = 10.0;
+
+	assert(!qantcal::calculators::calculate_yagi(input).ok);
+}
+
+void
 test_long_boom_longer_than_conservative()
 {
 	const qantcal::calculators::YagiDesignResult long_boom =
@@ -132,6 +162,24 @@ test_two_element_yagi_roles()
 	assert(result.elements[1].role == qantcal::calculators::YagiElementRole::Driven);
 }
 
+void
+test_unit_formatting_does_not_change_internal_metres()
+{
+	qantcal::calculators::YagiDesignInput input;
+
+	input.frequency_mhz = 144.3;
+	input.preferred_length_unit = qantcal::calculators::LengthUnit::Metres;
+	const qantcal::calculators::YagiDesignResult metres =
+		qantcal::calculators::calculate_yagi(input);
+	input.preferred_length_unit = qantcal::calculators::LengthUnit::Centimetres;
+	const qantcal::calculators::YagiDesignResult centimetres =
+		qantcal::calculators::calculate_yagi(input);
+
+	assert(metres.ok);
+	assert(centimetres.ok);
+	assert(near(metres.elements[0].length_metres, centimetres.elements[0].length_metres, 0.000001));
+}
+
 }
 
 int
@@ -141,10 +189,13 @@ main()
 	test_invalid_element_count_fails();
 	test_invalid_frequency_fails();
 	test_invalid_shortening_factor_fails();
+	test_boom_correction_reduces_length();
+	test_invalid_boom_correction_fails();
 	test_long_boom_longer_than_conservative();
 	test_ten_element_yagi_roles();
 	test_three_element_yagi_sanity();
 	test_two_element_yagi_roles();
+	test_unit_formatting_does_not_change_internal_metres();
 
 	return 0;
 }

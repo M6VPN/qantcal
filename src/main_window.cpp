@@ -104,17 +104,25 @@ yagi_result_to_text(const calculators::YagiDesignResult &result, calculators::Le
 		.arg(QString::fromStdString(calculators::format_length(result.boom_length_metres, length_unit)));
 	text += QStringLiteral("Length unit: %1\n\n")
 		.arg(QString::fromStdString(calculators::length_unit_label(length_unit)));
-	text += QStringLiteral("Element | Role | Length | Half-length | Spacing | Position | Notes\n");
+	text += QStringLiteral("%1  %2  %3  %4  %5  %6  %7\n")
+		.arg(QStringLiteral("No."), -4)
+		.arg(QStringLiteral("Element"), -12)
+		.arg(QStringLiteral("Role"), -10)
+		.arg(QStringLiteral("Length"), -15)
+		.arg(QStringLiteral("Half-length"), -15)
+		.arg(QStringLiteral("Spacing"), -15)
+		.arg(QStringLiteral("Position"), -15);
 
 	for (int i = 0; i < result.elements.size(); ++i) {
 		const calculators::YagiElement &element = result.elements[i];
-		text += QStringLiteral("%1 | %2 | %3 | %4 | %5 | %6 | %7\n")
+		text += QStringLiteral("%1  %2  %3  %4  %5  %6  %7\n")
 			.arg(i + 1)
-			.arg(calculators::yagi_element_role_label(element.role))
-			.arg(QString::fromStdString(calculators::format_length(element.length_metres, length_unit)))
-			.arg(QString::fromStdString(calculators::format_length(element.half_length_metres, length_unit)))
-			.arg(QString::fromStdString(calculators::format_length(element.spacing_from_previous_metres, length_unit)))
-			.arg(QString::fromStdString(calculators::format_length(element.position_from_reflector_metres, length_unit)))
+			.arg(element.label, -12)
+			.arg(calculators::yagi_element_role_label(element.role), -10)
+			.arg(QString::fromStdString(calculators::format_length(element.length_metres, length_unit)), -15)
+			.arg(QString::fromStdString(calculators::format_length(element.half_length_metres, length_unit)), -15)
+			.arg(QString::fromStdString(calculators::format_length(element.spacing_from_previous_metres, length_unit)), -15)
+			.arg(QString::fromStdString(calculators::format_length(element.position_from_reflector_metres, length_unit)), -15)
 			.arg(element.notes);
 	}
 
@@ -441,6 +449,7 @@ MainWindow::create_antenna_tab(QTabWidget *tabs)
 
 	design_view->setMinimumHeight(320);
 	result_text->setReadOnly(true);
+	result_text->setFontFamily(QStringLiteral("monospace"));
 	result_text->setMinimumHeight(160);
 
 	workspace_layout->addWidget(design_view, 3);
@@ -624,7 +633,9 @@ MainWindow::apply_project_to_ui()
 	}
 	{
 		const QSignalBlocker blocker(velocity_factor_box);
-		velocity_factor_box->setValue(current_project.velocity_factor);
+		velocity_factor_box->setValue(current_project.yagi_design.enabled
+			? current_project.yagi_design.element_shortening_factor
+			: current_project.velocity_factor);
 	}
 	if (current_project.yagi_design.enabled) {
 		{
@@ -647,6 +658,13 @@ MainWindow::apply_project_to_ui()
 	current_length_unit = current_project.preferred_length_unit;
 	configure_length_input();
 	update_yagi_controls();
+	{
+		const double frequency_mhz = project_restore_frequency_mhz();
+		if (frequency_mhz > 0.0) {
+			const QSignalBlocker blocker(frequency_box);
+			frequency_box->setValue(frequency_mhz);
+		}
+	}
 	update_target_list();
 	update_project_title();
 	calculate();
@@ -664,6 +682,7 @@ MainWindow::build_project_from_ui()
 	current_project.yagi_design.enabled = current_project.antenna_type == calculators::AntennaType::Yagi;
 	current_project.yagi_design.element_count = yagi_element_count_box->value();
 	current_project.yagi_design.preset = static_cast<calculators::YagiPreset>(yagi_preset_box->currentData().toInt());
+	current_project.yagi_design.frequency_mhz = current_project.yagi_design.enabled ? frequency_box->value() : 0.0;
 	current_project.yagi_design.element_shortening_factor = velocity_factor_box->value();
 	current_project.yagi_design.element_diameter_metres = calculators::length_unit_to_metres(yagi_element_diameter_box->value(), current_length_unit);
 	current_project.yagi_design.boom_correction_metres = calculators::length_unit_to_metres(yagi_boom_correction_box->value(), current_length_unit);
@@ -1167,6 +1186,25 @@ MainWindow::current_yagi_input() const
 	return input;
 }
 
+double
+MainWindow::project_restore_frequency_mhz() const
+{
+	if (current_project.yagi_design.enabled && current_project.yagi_design.frequency_mhz > 0.0)
+		return current_project.yagi_design.frequency_mhz;
+
+	for (const project::AntennaTarget &target : current_project.targets) {
+		if (target.enabled && target.frequency_mhz > 0.0)
+			return target.frequency_mhz;
+	}
+
+	for (const project::AntennaElement &element : current_project.elements) {
+		if (element.frequency_mhz > 0.0)
+			return element.frequency_mhz;
+	}
+
+	return 0.0;
+}
+
 calculators::LengthUnit
 MainWindow::selected_length_unit() const
 {
@@ -1244,6 +1282,9 @@ MainWindow::update_yagi_controls()
 	yagi_group->setVisible(is_yagi);
 	design_mode_box->setEnabled(!is_yagi);
 	length_box->setEnabled(!is_yagi);
+	velocity_factor_box->setMinimum(is_yagi ? 0.85 : calculators::MIN_WIRE_FACTOR);
+	if (is_yagi && velocity_factor_box->value() < 0.85)
+		velocity_factor_box->setValue(0.95);
 }
 
 }

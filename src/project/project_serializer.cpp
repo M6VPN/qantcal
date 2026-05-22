@@ -55,6 +55,7 @@ yagi_design_to_json(const YagiProjectDesign &design)
 	object.insert(QStringLiteral("elementCount"), design.element_count);
 	object.insert(QStringLiteral("elementDiameterMetres"), design.element_diameter_metres);
 	object.insert(QStringLiteral("elementShorteningFactor"), design.element_shortening_factor);
+	object.insert(QStringLiteral("frequencyMhz"), design.frequency_mhz);
 	object.insert(QStringLiteral("preset"), calculators::yagi_preset_key(design.preset));
 
 	return object;
@@ -183,6 +184,7 @@ read_yagi_design(const QJsonObject &object, YagiProjectDesign &design, QString &
 	const int element_count = yagi_object.value(QStringLiteral("elementCount")).toInt(3);
 	const double element_shortening_factor = yagi_object.value(QStringLiteral("elementShorteningFactor")).toDouble(0.95);
 	const double element_diameter_metres = yagi_object.value(QStringLiteral("elementDiameterMetres")).toDouble(0.010);
+	const double frequency_mhz = yagi_object.value(QStringLiteral("frequencyMhz")).toDouble(0.0);
 	const double boom_correction_metres = yagi_object.value(QStringLiteral("boomCorrectionMetres")).toDouble(0.0);
 
 	if (element_count < 2 || element_count > 10) {
@@ -201,11 +203,16 @@ read_yagi_design(const QJsonObject &object, YagiProjectDesign &design, QString &
 		error_message = QStringLiteral("Yagi boom correction cannot be negative.");
 		return false;
 	}
+	if (frequency_mhz < 0.0) {
+		error_message = QStringLiteral("Yagi frequency cannot be negative.");
+		return false;
+	}
 
 	design.enabled = true;
 	design.element_count = element_count;
 	design.element_shortening_factor = element_shortening_factor;
 	design.element_diameter_metres = element_diameter_metres;
+	design.frequency_mhz = frequency_mhz;
 	design.boom_correction_metres = boom_correction_metres;
 	design.preset = calculators::yagi_preset_from_key(yagi_object.value(QStringLiteral("preset")).toString());
 

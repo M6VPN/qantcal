@@ -45,6 +45,7 @@ sample_yagi_project()
 	project.velocity_factor = 0.95;
 	project.yagi_design.enabled = true;
 	project.yagi_design.element_count = 3;
+	project.yagi_design.frequency_mhz = 144.3;
 	project.yagi_design.preset = qantcal::calculators::YagiPreset::Conservative;
 
 	qantcal::project::AntennaTarget target;
@@ -168,6 +169,22 @@ test_yagi_document_contains_yagi_sections()
 	assert(found_yagi_notes);
 }
 
+void
+test_yagi_document_contains_starting_dimension_limits()
+{
+	const qantcal::guides::GuideDocument document =
+		qantcal::guides::create_project_guide_document(sample_yagi_project(), qantcal::calculators::LengthUnit::Metres);
+	bool found_limits = false;
+
+	for (const qantcal::guides::GuideSection &section : document.sections) {
+		found_limits = found_limits
+			|| section.body_text.contains(QStringLiteral("starting points"))
+			|| section.body_text.contains(QStringLiteral("not designed in this pass"));
+	}
+
+	assert(found_limits);
+}
+
 }
 
 int
@@ -179,6 +196,7 @@ main()
 	test_target_band_frequency_data();
 	test_unit_formatting();
 	test_yagi_document_contains_yagi_sections();
+	test_yagi_document_contains_starting_dimension_limits();
 
 	return 0;
 }

@@ -21,9 +21,12 @@ The first pass includes:
 - a Qt Widgets main window
 - basic antenna calculator inputs with a convenience ham band selector
 - selectable length units with saved preferences
+- qantcal JSON project save/load groundwork
 - simple schematic diagrams using `QGraphicsScene` and `QGraphicsView`
 - simple dipole, inverted Vee, vertical, EFHW, and loop calculations
+- first-pass Yagi starting dimensions for 2 to 10 elements
 - basic PDF guide export foundation
+- printable guide PDF export with project sections, assumptions, and safety notes
 - RF helper calculators for air-core coils, LC resonance, SWR/reflected power, and radio horizon
 - a small pure C++ calculator test executable
 
