@@ -4,7 +4,11 @@
 #include "main_window.h"
 
 #include "calculators/ham_band.h"
+#include "calculators/coil_calculator.h"
+#include "calculators/lc_resonance_calculator.h"
+#include "calculators/radio_horizon_calculator.h"
 #include "calculators/rf_units.h"
+#include "calculators/swr_calculator.h"
 #include "guides/guide_document.h"
 #include "guides/guide_renderer.h"
 
@@ -23,6 +27,7 @@
 #include <QSignalBlocker>
 #include <QSplitter>
 #include <QStatusBar>
+#include <QTabWidget>
 #include <QTextEdit>
 #include <QVBoxLayout>
 
@@ -69,6 +74,19 @@ result_to_text(const calculators::AntennaCalculationResult &result, calculators:
 		.arg(QString::fromStdString(result.trimming_note));
 
 	return text;
+}
+
+QDoubleSpinBox *
+create_positive_spin_box(QWidget *parent, double maximum, int decimals, const QString &suffix, double value)
+{
+	QDoubleSpinBox *box = new QDoubleSpinBox(parent);
+
+	box->setRange(0.0, maximum);
+	box->setDecimals(decimals);
+	box->setSuffix(suffix);
+	box->setValue(value);
+
+	return box;
 }
 
 }
@@ -179,6 +197,20 @@ void
 MainWindow::create_central_widget()
 {
 	QWidget *central = new QWidget(this);
+	QVBoxLayout *root_layout = new QVBoxLayout(central);
+	QTabWidget *tabs = new QTabWidget(central);
+
+	create_antenna_tab(tabs);
+	create_rf_calculators_tab(tabs);
+
+	root_layout->addWidget(tabs);
+	setCentralWidget(central);
+}
+
+void
+MainWindow::create_antenna_tab(QTabWidget *tabs)
+{
+	QWidget *central = new QWidget(tabs);
 	QSplitter *splitter = new QSplitter(Qt::Horizontal, central);
 	QVBoxLayout *root_layout = new QVBoxLayout(central);
 	QGroupBox *input_group = new QGroupBox(QStringLiteral("Calculator"), splitter);
@@ -253,7 +285,7 @@ MainWindow::create_central_widget()
 	splitter->setStretchFactor(1, 1);
 
 	root_layout->addWidget(splitter);
-	setCentralWidget(central);
+	tabs->addTab(central, QStringLiteral("Antenna Calculator"));
 
 	connect(calculate_button, &QPushButton::clicked, this, &MainWindow::calculate);
 	connect(band_box, &QComboBox::currentIndexChanged, this, &MainWindow::set_frequency_from_band);
@@ -263,6 +295,84 @@ MainWindow::create_central_widget()
 	connect(frequency_box, &QDoubleSpinBox::valueChanged, this, &MainWindow::calculate);
 	connect(length_box, &QDoubleSpinBox::valueChanged, this, &MainWindow::calculate);
 	connect(velocity_factor_box, &QDoubleSpinBox::valueChanged, this, &MainWindow::save_shortening_factor);
+}
+
+void
+MainWindow::create_rf_calculators_tab(QTabWidget *tabs)
+{
+	QWidget *rf_tab = new QWidget(tabs);
+	QVBoxLayout *root_layout = new QVBoxLayout(rf_tab);
+	QTabWidget *rf_tabs = new QTabWidget(rf_tab);
+
+	QWidget *coil_tab = new QWidget(rf_tabs);
+	QFormLayout *coil_layout = new QFormLayout(coil_tab);
+	QPushButton *coil_button = new QPushButton(QStringLiteral("Calculate"), coil_tab);
+	coil_diameter_box = create_positive_spin_box(coil_tab, 10000000.0, 3, QStringLiteral(" selected unit"), 0.05);
+	coil_length_box = create_positive_spin_box(coil_tab, 10000000.0, 3, QStringLiteral(" selected unit"), 0.10);
+	coil_turns_box = create_positive_spin_box(coil_tab, 10000.0, 2, QString(), 10.0);
+	coil_result_text = new QTextEdit(coil_tab);
+	coil_result_text->setReadOnly(true);
+	coil_layout->addRow(QStringLiteral("Diameter"), coil_diameter_box);
+	coil_layout->addRow(QStringLiteral("Coil length"), coil_length_box);
+	coil_layout->addRow(QStringLiteral("Turns"), coil_turns_box);
+	coil_layout->addRow(coil_button);
+	coil_layout->addRow(coil_result_text);
+	rf_tabs->addTab(coil_tab, QStringLiteral("Air-core coil"));
+
+	QWidget *lc_tab = new QWidget(rf_tabs);
+	QFormLayout *lc_layout = new QFormLayout(lc_tab);
+	QPushButton *lc_button = new QPushButton(QStringLiteral("Calculate"), lc_tab);
+	lc_inductance_box = create_positive_spin_box(lc_tab, 1000000.0, 6, QStringLiteral(" uH"), 1.0);
+	lc_capacitance_box = create_positive_spin_box(lc_tab, 10000000.0, 3, QStringLiteral(" pF"), 100.0);
+	lc_frequency_box = create_positive_spin_box(lc_tab, 300000.0, 6, QStringLiteral(" MHz"), 0.0);
+	lc_result_text = new QTextEdit(lc_tab);
+	lc_result_text->setReadOnly(true);
+	lc_layout->addRow(QStringLiteral("Inductance"), lc_inductance_box);
+	lc_layout->addRow(QStringLiteral("Capacitance"), lc_capacitance_box);
+	lc_layout->addRow(QStringLiteral("Frequency for reverse"), lc_frequency_box);
+	lc_layout->addRow(lc_button);
+	lc_layout->addRow(lc_result_text);
+	rf_tabs->addTab(lc_tab, QStringLiteral("LC resonance"));
+
+	QWidget *swr_tab = new QWidget(rf_tabs);
+	QFormLayout *swr_layout = new QFormLayout(swr_tab);
+	QPushButton *swr_button = new QPushButton(QStringLiteral("Calculate"), swr_tab);
+	swr_forward_power_box = create_positive_spin_box(swr_tab, 1000000.0, 3, QStringLiteral(" W"), 100.0);
+	swr_value_box = create_positive_spin_box(swr_tab, 1000.0, 3, QString(), 2.0);
+	swr_value_box->setMinimum(1.0);
+	swr_result_text = new QTextEdit(swr_tab);
+	swr_result_text->setReadOnly(true);
+	swr_layout->addRow(QStringLiteral("Forward power"), swr_forward_power_box);
+	swr_layout->addRow(QStringLiteral("SWR"), swr_value_box);
+	swr_layout->addRow(swr_button);
+	swr_layout->addRow(swr_result_text);
+	rf_tabs->addTab(swr_tab, QStringLiteral("SWR / reflected power"));
+
+	QWidget *horizon_tab = new QWidget(rf_tabs);
+	QFormLayout *horizon_layout = new QFormLayout(horizon_tab);
+	QPushButton *horizon_button = new QPushButton(QStringLiteral("Calculate"), horizon_tab);
+	horizon_tx_height_box = create_positive_spin_box(horizon_tab, 10000000.0, 3, QStringLiteral(" selected unit"), 10.0);
+	horizon_rx_height_box = create_positive_spin_box(horizon_tab, 10000000.0, 3, QStringLiteral(" selected unit"), 10.0);
+	horizon_result_text = new QTextEdit(horizon_tab);
+	horizon_result_text->setReadOnly(true);
+	horizon_layout->addRow(QStringLiteral("TX antenna height"), horizon_tx_height_box);
+	horizon_layout->addRow(QStringLiteral("RX antenna height"), horizon_rx_height_box);
+	horizon_layout->addRow(horizon_button);
+	horizon_layout->addRow(horizon_result_text);
+	rf_tabs->addTab(horizon_tab, QStringLiteral("Radio horizon"));
+
+	root_layout->addWidget(rf_tabs);
+	tabs->addTab(rf_tab, QStringLiteral("RF Calculators"));
+
+	connect(coil_button, &QPushButton::clicked, this, &MainWindow::calculate_coil);
+	connect(lc_button, &QPushButton::clicked, this, &MainWindow::calculate_lc);
+	connect(swr_button, &QPushButton::clicked, this, &MainWindow::calculate_swr);
+	connect(horizon_button, &QPushButton::clicked, this, &MainWindow::calculate_horizon);
+
+	calculate_coil();
+	calculate_lc();
+	calculate_swr();
+	calculate_horizon();
 }
 
 void
@@ -324,6 +434,108 @@ MainWindow::export_pdf()
 	}
 
 	statusBar()->showMessage(QStringLiteral("Export failed: could not write PDF"));
+}
+
+void
+MainWindow::calculate_coil()
+{
+	const calculators::CoilCalculationInput input = {
+		calculators::length_unit_to_metres(coil_diameter_box->value(), current_length_unit),
+		calculators::length_unit_to_metres(coil_length_box->value(), current_length_unit),
+		coil_turns_box->value()
+	};
+	const calculators::CoilCalculationResult result = calculators::calculate_air_core_solenoid(input);
+
+	if (!result.ok) {
+		coil_result_text->setPlainText(QStringLiteral("Input error: %1").arg(QString::fromStdString(result.error)));
+		return;
+	}
+
+	coil_result_text->setPlainText(
+		QStringLiteral("Inductance: %1 uH\n\n%2")
+			.arg(result.inductance_uh, 0, 'f', 3)
+			.arg(QString::fromStdString(result.note))
+	);
+}
+
+void
+MainWindow::calculate_horizon()
+{
+	const calculators::RadioHorizonInput input = {
+		calculators::length_unit_to_metres(horizon_rx_height_box->value(), current_length_unit),
+		calculators::length_unit_to_metres(horizon_tx_height_box->value(), current_length_unit)
+	};
+	const calculators::RadioHorizonResult result = calculators::calculate_radio_horizon(input);
+
+	if (!result.ok) {
+		horizon_result_text->setPlainText(QStringLiteral("Input error: %1").arg(QString::fromStdString(result.error)));
+		return;
+	}
+
+	horizon_result_text->setPlainText(
+		QStringLiteral("TX horizon: %1 km\nRX horizon: %2 km\nCombined line-of-sight estimate: %3 km\n\n%4")
+			.arg(result.tx_horizon_km, 0, 'f', 2)
+			.arg(result.rx_horizon_km, 0, 'f', 2)
+			.arg(result.combined_distance_km, 0, 'f', 2)
+			.arg(QString::fromStdString(result.note))
+	);
+}
+
+void
+MainWindow::calculate_lc()
+{
+	calculators::LcResonanceInput input;
+
+	input.inductance_uh = lc_inductance_box->value();
+	input.capacitance_pf = lc_capacitance_box->value();
+	input.frequency_mhz = lc_frequency_box->value();
+
+	if (input.frequency_mhz > 0.0 && input.capacitance_pf > 0.0 && input.inductance_uh <= 0.0)
+		input.mode = calculators::LcCalculationMode::InductanceFromFrequencyCapacitance;
+	else if (input.frequency_mhz > 0.0 && input.inductance_uh > 0.0 && input.capacitance_pf <= 0.0)
+		input.mode = calculators::LcCalculationMode::CapacitanceFromFrequencyInductance;
+	else
+		input.mode = calculators::LcCalculationMode::FrequencyFromLC;
+
+	const calculators::LcResonanceResult result = calculators::calculate_lc_resonance(input);
+
+	if (!result.ok) {
+		lc_result_text->setPlainText(QStringLiteral("Input error: %1").arg(QString::fromStdString(result.error)));
+		return;
+	}
+
+	lc_result_text->setPlainText(
+		QStringLiteral("Frequency: %1 Hz\nFrequency: %2 kHz\nFrequency: %3 MHz\nInductance: %4 uH\nCapacitance: %5 pF")
+			.arg(result.frequency_hz, 0, 'f', 1)
+			.arg(result.frequency_khz, 0, 'f', 3)
+			.arg(result.frequency_mhz, 0, 'f', 6)
+			.arg(result.inductance_uh, 0, 'f', 6)
+			.arg(result.capacitance_pf, 0, 'f', 3)
+	);
+}
+
+void
+MainWindow::calculate_swr()
+{
+	const calculators::SwrCalculationInput input = {
+		swr_forward_power_box->value(),
+		swr_value_box->value()
+	};
+	const calculators::SwrCalculationResult result = calculators::calculate_swr(input);
+
+	if (!result.ok) {
+		swr_result_text->setPlainText(QStringLiteral("Input error: %1").arg(QString::fromStdString(result.error)));
+		return;
+	}
+
+	swr_result_text->setPlainText(
+		QStringLiteral("Reflection coefficient: %1\nReflected power: %2 W\nReflected power: %3%\nDelivered estimate: %4 W\n\n%5")
+			.arg(result.reflection_coefficient, 0, 'f', 3)
+			.arg(result.reflected_power_w, 0, 'f', 3)
+			.arg(result.reflected_percent, 0, 'f', 2)
+			.arg(result.delivered_power_w, 0, 'f', 3)
+			.arg(QString::fromStdString(result.note))
+	);
 }
 
 void

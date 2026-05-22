@@ -24,6 +24,7 @@ The first pass includes:
 - simple schematic diagrams using `QGraphicsScene` and `QGraphicsView`
 - simple dipole, inverted Vee, vertical, EFHW, and loop calculations
 - basic PDF guide export foundation
+- RF helper calculators for air-core coils, LC resonance, SWR/reflected power, and radio horizon
 - a small pure C++ calculator test executable
 
 ## Planned Features

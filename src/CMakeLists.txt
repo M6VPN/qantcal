@@ -4,10 +4,18 @@
 add_library(qantcal_core
 	calculators/antenna_calculator.cpp
 	calculators/antenna_calculator.h
+	calculators/coil_calculator.cpp
+	calculators/coil_calculator.h
 	calculators/ham_band.cpp
 	calculators/ham_band.h
+	calculators/lc_resonance_calculator.cpp
+	calculators/lc_resonance_calculator.h
+	calculators/radio_horizon_calculator.cpp
+	calculators/radio_horizon_calculator.h
 	calculators/rf_units.cpp
 	calculators/rf_units.h
+	calculators/swr_calculator.cpp
+	calculators/swr_calculator.h
 	guides/guide_document.cpp
 	guides/guide_document.h
 	guides/guide_renderer.cpp
