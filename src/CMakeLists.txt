@@ -4,6 +4,8 @@
 add_library(qantcal_core
 	calculators/antenna_calculator.cpp
 	calculators/antenna_calculator.h
+	calculators/ham_band.cpp
+	calculators/ham_band.h
 	calculators/rf_units.cpp
 	calculators/rf_units.h
 )

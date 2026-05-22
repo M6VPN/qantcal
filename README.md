@@ -19,9 +19,9 @@ This repository currently contains the initial C++17, Qt6 Widgets, CMake, and te
 The first pass includes:
 
 - a Qt Widgets main window
-- basic antenna calculator inputs
-- a placeholder antenna diagram using `QGraphicsScene` and `QGraphicsView`
-- simple dipole, vertical, EFHW, and loop calculations
+- basic antenna calculator inputs with a convenience ham band selector
+- simple schematic diagrams using `QGraphicsScene` and `QGraphicsView`
+- simple dipole, inverted Vee, vertical, EFHW, and loop calculations
 - a small pure C++ calculator test executable
 
 ## Planned Features

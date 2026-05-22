@@ -3,6 +3,7 @@
 
 #include "main_window.h"
 
+#include "calculators/ham_band.h"
 #include "calculators/rf_units.h"
 
 #include <QAction>
@@ -17,33 +18,13 @@
 #include <QMessageBox>
 #include <QPushButton>
 #include <QSplitter>
+#include <QStatusBar>
 #include <QTextEdit>
 #include <QVBoxLayout>
 
 namespace qantcal {
 
 namespace {
-
-struct BandPreset {
-	const char *label;
-	double frequency_mhz;
-};
-
-constexpr BandPreset BAND_PRESETS[] = {
-	{ "Custom", 0.0 },
-	{ "160 m", 1.9 },
-	{ "80 m", 3.65 },
-	{ "40 m", 7.1 },
-	{ "30 m", 10.125 },
-	{ "20 m", 14.2 },
-	{ "17 m", 18.1 },
-	{ "15 m", 21.2 },
-	{ "12 m", 24.95 },
-	{ "10 m", 28.5 },
-	{ "6 m", 50.15 },
-	{ "2 m", 145.0 },
-	{ "70 cm", 433.0 },
-};
 
 QString
 result_to_text(const calculators::AntennaCalculationResult &result)
@@ -57,26 +38,32 @@ result_to_text(const calculators::AntennaCalculationResult &result)
 	text += QStringLiteral("Wavelength: %1\n")
 		.arg(QString::fromStdString(calculators::format_meters(result.wavelength_m)));
 	text += QStringLiteral("Velocity / shortening factor: %1\n")
-		.arg(result.velocity_factor, 0, 'f', 3);
+		.arg(result.shortening_factor, 0, 'f', 3);
 
 	if (result.total_length_m > 0.0) {
-		text += QStringLiteral("Total length: %1\n")
-			.arg(QString::fromStdString(calculators::format_meters(result.total_length_m)));
+		text += QStringLiteral("Total length: %1 (%2 ft)\n")
+			.arg(QString::fromStdString(calculators::format_meters(result.total_length_m)))
+			.arg(result.total_length_ft, 0, 'f', 2);
 	}
 
 	if (result.leg_length_m > 0.0) {
-		text += QStringLiteral("Per-leg length: %1\n")
-			.arg(QString::fromStdString(calculators::format_meters(result.leg_length_m)));
+		text += QStringLiteral("Per-leg length: %1 (%2 ft)\n")
+			.arg(QString::fromStdString(calculators::format_meters(result.leg_length_m)))
+			.arg(result.leg_length_ft, 0, 'f', 2);
 	}
 
 	if (result.radiator_length_m > 0.0) {
-		text += QStringLiteral("Radiator length: %1\n")
-			.arg(QString::fromStdString(calculators::format_meters(result.radiator_length_m)));
+		text += QStringLiteral("Radiator length: %1 (%2 ft)\n")
+			.arg(QString::fromStdString(calculators::format_meters(result.radiator_length_m)))
+			.arg(result.radiator_length_ft, 0, 'f', 2);
 	}
 
-	text += QStringLiteral("\nNote: %1\n")
-		.arg(QString::fromStdString(result.note));
-	text += QStringLiteral("\nApproximation warning: these are starting dimensions only. Trim, measure, and check the final installation.");
+	text += QStringLiteral("\nCounterpoise/radial note: %1\n")
+		.arg(QString::fromStdString(result.counterpoise_note));
+	text += QStringLiteral("Matching note: %1\n")
+		.arg(QString::fromStdString(result.matching_note));
+	text += QStringLiteral("Trimming note: %1\n")
+		.arg(QString::fromStdString(result.trimming_note));
 
 	return text;
 }
@@ -101,7 +88,14 @@ MainWindow::calculate()
 	const calculators::AntennaCalculationResult result = calculators::calculate_antenna(input);
 
 	result_text->setPlainText(result_to_text(result));
-	design_scene->show_placeholder_diagram(QString::fromUtf8(calculators::antenna_type_label(input.antenna_type)));
+	design_scene->show_antenna_diagram(result);
+
+	if (result.ok) {
+		statusBar()->showMessage(QStringLiteral("Calculation updated"));
+		return;
+	}
+
+	statusBar()->showMessage(QStringLiteral("Input error: %1").arg(QString::fromStdString(result.error)));
 }
 
 void
@@ -145,7 +139,8 @@ MainWindow::create_central_widget()
 	antenna_type_box->addItem(QStringLiteral("Quarter-wave vertical"), static_cast<int>(calculators::AntennaType::QuarterWaveVertical));
 	antenna_type_box->addItem(QStringLiteral("End-fed half-wave"), static_cast<int>(calculators::AntennaType::EndFedHalfWave));
 	antenna_type_box->addItem(QStringLiteral("Full-wave loop"), static_cast<int>(calculators::AntennaType::FullWaveLoop));
-	antenna_type_box->addItem(QStringLiteral("Long wire / random wire placeholder"), static_cast<int>(calculators::AntennaType::LongWirePlaceholder));
+	antenna_type_box->addItem(QStringLiteral("Inverted Vee"), static_cast<int>(calculators::AntennaType::InvertedVee));
+	antenna_type_box->addItem(QStringLiteral("Random wire"), static_cast<int>(calculators::AntennaType::RandomWire));
 
 	design_mode_box->addItem(QStringLiteral("Frequency to length"), static_cast<int>(calculators::DesignMode::FrequencyToLength));
 	design_mode_box->addItem(QStringLiteral("Length to frequency"), static_cast<int>(calculators::DesignMode::LengthToFrequency));
@@ -160,7 +155,7 @@ MainWindow::create_central_widget()
 	length_box->setSuffix(QStringLiteral(" m"));
 	length_box->setValue(20.0);
 
-	velocity_factor_box->setRange(0.1, 1.0);
+	velocity_factor_box->setRange(calculators::MIN_WIRE_FACTOR, calculators::MAX_WIRE_FACTOR);
 	velocity_factor_box->setDecimals(3);
 	velocity_factor_box->setSingleStep(0.005);
 	velocity_factor_box->setValue(calculators::DEFAULT_WIRE_FACTOR);
@@ -208,10 +203,17 @@ MainWindow::create_central_widget()
 void
 MainWindow::populate_band_selector()
 {
-	for (const BandPreset &band : BAND_PRESETS)
-		band_box->addItem(QString::fromUtf8(band.label), band.frequency_mhz);
+	band_box->addItem(QStringLiteral("Custom"), 0.0);
 
-	band_box->setCurrentIndex(3);
+	for (const calculators::HamBand &band : calculators::ham_bands()) {
+		const QString label = QStringLiteral("%1 (%2-%3 MHz)")
+			.arg(QString::fromStdString(band.display_name))
+			.arg(band.lower_frequency_mhz, 0, 'f', 3)
+			.arg(band.upper_frequency_mhz, 0, 'f', 3);
+		band_box->addItem(label, band.design_frequency_mhz);
+	}
+
+	band_box->setCurrentIndex(4);
 }
 
 void
@@ -258,7 +260,7 @@ MainWindow::current_input() const
 	input.design_mode = static_cast<calculators::DesignMode>(design_mode_box->currentData().toInt());
 	input.frequency_mhz = frequency_box->value();
 	input.length_m = length_box->value();
-	input.velocity_factor = velocity_factor_box->value();
+	input.shortening_factor = velocity_factor_box->value();
 
 	return input;
 }

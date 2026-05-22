@@ -6,19 +6,38 @@
 #include <QBrush>
 #include <QFont>
 #include <QGraphicsTextItem>
+#include <QPainterPath>
 #include <QPen>
+#include <QPolygonF>
 
 namespace qantcal::design {
+
+namespace {
+
+QString
+length_label(const QString &prefix, double metres)
+{
+	if (metres <= 0.0)
+		return prefix;
+
+	return QStringLiteral("%1: %2 m").arg(prefix).arg(metres, 0, 'f', 2);
+}
+
+}
 
 AntennaDesignScene::AntennaDesignScene(QObject *parent)
 	: QGraphicsScene(parent)
 {
-	setSceneRect(-260.0, -160.0, 520.0, 320.0);
-	show_placeholder_diagram(QStringLiteral("Half-wave dipole"));
+	setSceneRect(-280.0, -180.0, 560.0, 360.0);
+
+	calculators::AntennaCalculationResult result;
+	result.ok = true;
+	result.antenna_type = calculators::AntennaType::HalfWaveDipole;
+	show_antenna_diagram(result);
 }
 
 void
-AntennaDesignScene::show_placeholder_diagram(const QString &antenna_label)
+AntennaDesignScene::show_antenna_diagram(const calculators::AntennaCalculationResult &result)
 {
 	clear();
 
@@ -26,25 +45,81 @@ AntennaDesignScene::show_placeholder_diagram(const QString &antenna_label)
 	const QPen feed_pen(QColor(170, 60, 40), 3.0);
 	const QPen guide_pen(QColor(120, 120, 120), 1.0, Qt::DashLine);
 	const QBrush feed_brush(QColor(210, 80, 50));
+	const QBrush tuner_brush(QColor(80, 130, 90));
 	const QFont label_font(QStringLiteral("Sans Serif"), 10);
+	const QString title_text = QString::fromUtf8(calculators::antenna_type_label(result.antenna_type));
 
-	addLine(-220.0, 0.0, -12.0, 0.0, wire_pen);
-	addLine(12.0, 0.0, 220.0, 0.0, wire_pen);
-	addEllipse(-12.0, -12.0, 24.0, 24.0, feed_pen, feed_brush);
-	addLine(0.0, 12.0, 0.0, 96.0, feed_pen);
-	addLine(-240.0, 96.0, 240.0, 96.0, guide_pen);
-
-	QGraphicsTextItem *title = addText(antenna_label, label_font);
+	QGraphicsTextItem *title = addText(title_text, label_font);
 	title->setDefaultTextColor(QColor(35, 35, 35));
-	title->setPos(-220.0, -120.0);
+	title->setPos(-250.0, -150.0);
 
-	QGraphicsTextItem *feed_label = addText(QStringLiteral("feed point"), label_font);
-	feed_label->setDefaultTextColor(QColor(80, 80, 80));
-	feed_label->setPos(18.0, 18.0);
+	switch (result.antenna_type) {
+	case calculators::AntennaType::HalfWaveDipole:
+		addLine(-230.0, 0.0, -12.0, 0.0, wire_pen);
+		addLine(12.0, 0.0, 230.0, 0.0, wire_pen);
+		addEllipse(-12.0, -12.0, 24.0, 24.0, feed_pen, feed_brush);
+		addLine(0.0, 12.0, 0.0, 95.0, feed_pen);
+		addText(length_label(QStringLiteral("left leg"), result.leg_length_m), label_font)->setPos(-220.0, -40.0);
+		addText(length_label(QStringLiteral("right leg"), result.leg_length_m), label_font)->setPos(80.0, -40.0);
+		addText(QStringLiteral("centre feed"), label_font)->setPos(18.0, 18.0);
+		break;
+	case calculators::AntennaType::InvertedVee:
+		addLine(0.0, -95.0, -220.0, 55.0, wire_pen);
+		addLine(0.0, -95.0, 220.0, 55.0, wire_pen);
+		addEllipse(-12.0, -107.0, 24.0, 24.0, feed_pen, feed_brush);
+		addLine(-240.0, 75.0, 240.0, 75.0, guide_pen);
+		addText(length_label(QStringLiteral("leg"), result.leg_length_m), label_font)->setPos(-210.0, -25.0);
+		addText(length_label(QStringLiteral("leg"), result.leg_length_m), label_font)->setPos(105.0, -25.0);
+		addText(QStringLiteral("apex feed"), label_font)->setPos(18.0, -120.0);
+		break;
+	case calculators::AntennaType::QuarterWaveVertical:
+		addLine(0.0, 80.0, 0.0, -115.0, wire_pen);
+		addEllipse(-12.0, 68.0, 24.0, 24.0, feed_pen, feed_brush);
+		addLine(-230.0, 95.0, 230.0, 95.0, guide_pen);
+		addLine(0.0, 85.0, -160.0, 130.0, wire_pen);
+		addLine(0.0, 85.0, 160.0, 130.0, wire_pen);
+		addLine(0.0, 85.0, -110.0, 95.0, wire_pen);
+		addLine(0.0, 85.0, 110.0, 95.0, wire_pen);
+		addText(length_label(QStringLiteral("radiator"), result.radiator_length_m), label_font)->setPos(20.0, -35.0);
+		addText(QStringLiteral("radials / counterpoise"), label_font)->setPos(-95.0, 130.0);
+		break;
+	case calculators::AntennaType::EndFedHalfWave:
+		addLine(-220.0, 0.0, 230.0, 0.0, wire_pen);
+		addRect(-245.0, -18.0, 28.0, 36.0, feed_pen, feed_brush);
+		addLine(-231.0, 18.0, -231.0, 95.0, feed_pen);
+		addText(length_label(QStringLiteral("wire"), result.total_length_m), label_font)->setPos(-75.0, -40.0);
+		addText(QStringLiteral("end feed / matcher"), label_font)->setPos(-250.0, 25.0);
+		break;
+	case calculators::AntennaType::FullWaveLoop: {
+		QPolygonF loop;
+		loop << QPointF(0.0, -115.0) << QPointF(210.0, 0.0) << QPointF(0.0, 115.0) << QPointF(-210.0, 0.0) << QPointF(0.0, -115.0);
+		addPolygon(loop, wire_pen);
+		addEllipse(-12.0, 103.0, 24.0, 24.0, feed_pen, feed_brush);
+		addText(length_label(QStringLiteral("circumference"), result.total_length_m), label_font)->setPos(-95.0, -145.0);
+		addText(QStringLiteral("feed point"), label_font)->setPos(18.0, 110.0);
+		break;
+	}
+	case calculators::AntennaType::RandomWire: {
+		QPainterPath wire;
+		wire.moveTo(-230.0, 20.0);
+		wire.lineTo(-110.0, -45.0);
+		wire.lineTo(30.0, 10.0);
+		wire.lineTo(145.0, -65.0);
+		wire.lineTo(230.0, -25.0);
+		addPath(wire, wire_pen);
+		addRect(-255.0, 2.0, 34.0, 36.0, feed_pen, tuner_brush);
+		addLine(-238.0, 38.0, -238.0, 105.0, feed_pen);
+		addText(QStringLiteral("tuner / matcher"), label_font)->setPos(-255.0, 45.0);
+		addText(QStringLiteral("counterpoise required"), label_font)->setPos(-65.0, 85.0);
+		break;
+	}
+	}
 
-	QGraphicsTextItem *note = addText(QStringLiteral("diagram placeholder"), label_font);
-	note->setDefaultTextColor(QColor(95, 95, 95));
-	note->setPos(-220.0, 110.0);
+	if (!result.ok) {
+		QGraphicsTextItem *error = addText(QString::fromStdString(result.error), label_font);
+		error->setDefaultTextColor(QColor(150, 40, 35));
+		error->setPos(-250.0, 135.0);
+	}
 }
 
 }

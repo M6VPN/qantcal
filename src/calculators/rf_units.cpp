@@ -8,18 +8,6 @@
 
 namespace qantcal::calculators {
 
-double
-hz_to_mhz(double hz)
-{
-	return hz / 1000000.0;
-}
-
-double
-mhz_to_hz(double mhz)
-{
-	return mhz * 1000000.0;
-}
-
 std::string
 format_meters(double value)
 {
