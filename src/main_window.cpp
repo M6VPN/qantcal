@@ -11,8 +11,10 @@
 #include "calculators/swr_calculator.h"
 #include "guides/guide_document.h"
 #include "guides/guide_renderer.h"
+#include "project/project_file_io.h"
 
 #include <QAction>
+#include <QCheckBox>
 #include <QComboBox>
 #include <QDoubleSpinBox>
 #include <QFileDialog>
@@ -21,6 +23,8 @@
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QLineEdit>
+#include <QListWidget>
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QPushButton>
@@ -30,6 +34,9 @@
 #include <QTabWidget>
 #include <QTextEdit>
 #include <QVBoxLayout>
+#include <QCloseEvent>
+#include <QDateTime>
+#include <QFileInfo>
 
 namespace qantcal {
 
@@ -94,7 +101,8 @@ create_positive_spin_box(QWidget *parent, double maximum, int decimals, const QS
 MainWindow::MainWindow(QWidget *parent)
 	: QMainWindow(parent)
 {
-	setWindowTitle(QStringLiteral("qantcal"));
+	current_project = project::default_project();
+	update_project_title();
 	resize(1100, 720);
 
 	create_actions();
@@ -111,7 +119,11 @@ MainWindow::calculate()
 
 	latest_result = result;
 	result_text->setPlainText(result_to_text(result, current_length_unit));
-	design_scene->show_antenna_diagram(result, current_length_unit);
+	build_project_from_ui();
+	if (current_project.targets.isEmpty())
+		design_scene->show_antenna_diagram(result, current_length_unit);
+	else
+		design_scene->show_project_diagram(current_project, current_length_unit);
 
 	if (result.ok) {
 		statusBar()->showMessage(QStringLiteral("Calculation updated"));
@@ -136,6 +148,8 @@ MainWindow::change_length_unit(int index)
 	}
 
 	app_settings.set_length_unit(current_length_unit);
+	current_project.preferred_length_unit = current_length_unit;
+	mark_project_dirty();
 	calculate();
 	statusBar()->showMessage(
 		QStringLiteral("Length unit set to %1")
@@ -176,9 +190,25 @@ MainWindow::configure_length_input()
 }
 
 void
+MainWindow::closeEvent(QCloseEvent *event)
+{
+	if (confirm_discard_changes()) {
+		event->accept();
+		return;
+	}
+
+	event->ignore();
+}
+
+void
 MainWindow::create_actions()
 {
 	QMenu *file_menu = menuBar()->addMenu(QStringLiteral("&File"));
+	QAction *new_action = file_menu->addAction(QStringLiteral("New Project"));
+	QAction *open_action = file_menu->addAction(QStringLiteral("Open Project"));
+	QAction *save_action = file_menu->addAction(QStringLiteral("Save Project"));
+	QAction *save_as_action = file_menu->addAction(QStringLiteral("Save Project As"));
+	file_menu->addSeparator();
 	QAction *print_action = file_menu->addAction(QStringLiteral("Print Guide"));
 	QAction *export_pdf_action = file_menu->addAction(QStringLiteral("Export PDF"));
 	file_menu->addSeparator();
@@ -187,6 +217,10 @@ MainWindow::create_actions()
 	QMenu *help_menu = menuBar()->addMenu(QStringLiteral("&Help"));
 	QAction *about_action = help_menu->addAction(QStringLiteral("About qantcal"));
 
+	connect(new_action, &QAction::triggered, this, &MainWindow::new_project);
+	connect(open_action, &QAction::triggered, this, &MainWindow::open_project);
+	connect(save_action, &QAction::triggered, this, &MainWindow::save_project);
+	connect(save_as_action, &QAction::triggered, this, &MainWindow::save_project_as);
 	connect(print_action, &QAction::triggered, this, &MainWindow::show_print_placeholder);
 	connect(export_pdf_action, &QAction::triggered, this, &MainWindow::export_pdf);
 	connect(exit_action, &QAction::triggered, this, &QWidget::close);
@@ -220,9 +254,11 @@ MainWindow::create_antenna_tab(QTabWidget *tabs)
 	antenna_type_box = new QComboBox(input_group);
 	design_mode_box = new QComboBox(input_group);
 	length_unit_box = new QComboBox(input_group);
+	project_title_box = new QLineEdit(input_group);
 	frequency_box = new QDoubleSpinBox(input_group);
 	length_box = new QDoubleSpinBox(input_group);
 	velocity_factor_box = new QDoubleSpinBox(input_group);
+	project_notes_edit = new QTextEdit(input_group);
 	calculate_button = new QPushButton(QStringLiteral("Calculate"), input_group);
 
 	populate_band_selector();
@@ -254,7 +290,10 @@ MainWindow::create_antenna_tab(QTabWidget *tabs)
 	velocity_factor_box->setDecimals(3);
 	velocity_factor_box->setSingleStep(0.005);
 	velocity_factor_box->setValue(calculators::DEFAULT_WIRE_FACTOR);
+	project_title_box->setText(current_project.title);
+	project_notes_edit->setMaximumHeight(80);
 
+	input_layout->addRow(QStringLiteral("Project title"), project_title_box);
 	input_layout->addRow(QStringLiteral("Band"), band_box);
 	input_layout->addRow(QStringLiteral("Antenna type"), antenna_type_box);
 	input_layout->addRow(QStringLiteral("Design mode"), design_mode_box);
@@ -262,13 +301,27 @@ MainWindow::create_antenna_tab(QTabWidget *tabs)
 	input_layout->addRow(QStringLiteral("Frequency"), frequency_box);
 	input_layout->addRow(QStringLiteral("Wire / element length"), length_box);
 	input_layout->addRow(QStringLiteral("Shortening factor"), velocity_factor_box);
+	input_layout->addRow(QStringLiteral("Project notes"), project_notes_edit);
 	input_layout->addRow(calculate_button);
 
 	QWidget *workspace = new QWidget(splitter);
 	QVBoxLayout *workspace_layout = new QVBoxLayout(workspace);
+	QGroupBox *targets_group = new QGroupBox(QStringLiteral("Target bands"), workspace);
+	QHBoxLayout *target_button_layout = new QHBoxLayout();
+	QPushButton *add_target_button = new QPushButton(QStringLiteral("Add current"), targets_group);
+	QPushButton *remove_target_button = new QPushButton(QStringLiteral("Remove selected"), targets_group);
+	QPushButton *recalculate_targets_button = new QPushButton(QStringLiteral("Recalculate all"), targets_group);
+	QVBoxLayout *targets_layout = new QVBoxLayout(targets_group);
 	design_scene = new design::AntennaDesignScene(workspace);
 	design_view = new QGraphicsView(design_scene, workspace);
 	result_text = new QTextEdit(workspace);
+	target_list = new QListWidget(targets_group);
+
+	target_button_layout->addWidget(add_target_button);
+	target_button_layout->addWidget(remove_target_button);
+	target_button_layout->addWidget(recalculate_targets_button);
+	targets_layout->addWidget(target_list);
+	targets_layout->addLayout(target_button_layout);
 
 	design_view->setRenderHint(QPainter::Antialiasing);
 	design_view->setMinimumHeight(320);
@@ -276,6 +329,7 @@ MainWindow::create_antenna_tab(QTabWidget *tabs)
 	result_text->setMinimumHeight(160);
 
 	workspace_layout->addWidget(design_view, 3);
+	workspace_layout->addWidget(targets_group, 1);
 	workspace_layout->addWidget(new QLabel(QStringLiteral("Results"), workspace));
 	workspace_layout->addWidget(result_text, 1);
 
@@ -288,12 +342,18 @@ MainWindow::create_antenna_tab(QTabWidget *tabs)
 	tabs->addTab(central, QStringLiteral("Antenna Calculator"));
 
 	connect(calculate_button, &QPushButton::clicked, this, &MainWindow::calculate);
+	connect(add_target_button, &QPushButton::clicked, this, &MainWindow::add_current_target);
 	connect(band_box, &QComboBox::currentIndexChanged, this, &MainWindow::set_frequency_from_band);
 	connect(antenna_type_box, &QComboBox::currentIndexChanged, this, &MainWindow::save_antenna_type);
 	connect(design_mode_box, &QComboBox::currentIndexChanged, this, &MainWindow::calculate);
 	connect(length_unit_box, &QComboBox::currentIndexChanged, this, &MainWindow::change_length_unit);
 	connect(frequency_box, &QDoubleSpinBox::valueChanged, this, &MainWindow::calculate);
 	connect(length_box, &QDoubleSpinBox::valueChanged, this, &MainWindow::calculate);
+	connect(project_notes_edit, &QTextEdit::textChanged, this, &MainWindow::mark_project_dirty_and_recalculate);
+	connect(project_title_box, &QLineEdit::textChanged, this, &MainWindow::mark_project_dirty_and_recalculate);
+	connect(recalculate_targets_button, &QPushButton::clicked, this, &MainWindow::recalculate_targets);
+	connect(remove_target_button, &QPushButton::clicked, this, &MainWindow::remove_selected_target);
+	connect(target_list, &QListWidget::itemChanged, this, &MainWindow::target_item_changed);
 	connect(velocity_factor_box, &QDoubleSpinBox::valueChanged, this, &MainWindow::save_shortening_factor);
 }
 
@@ -400,7 +460,198 @@ MainWindow::set_frequency_from_band(int index)
 		frequency_box->setValue(frequency_mhz);
 
 	app_settings.set_band_index(index);
+	mark_project_dirty();
 	calculate();
+}
+
+void
+MainWindow::add_current_target()
+{
+	project::AntennaTarget target;
+
+	target.band_name = band_box->currentText();
+	target.enabled = true;
+	target.frequency_mhz = frequency_box->value();
+	current_project.targets.append(target);
+
+	recalculate_targets();
+	mark_project_dirty();
+}
+
+void
+MainWindow::apply_project_to_ui()
+{
+	const int antenna_index = antenna_type_box->findData(static_cast<int>(current_project.antenna_type));
+	const int unit_index = length_unit_box->findData(static_cast<int>(current_project.preferred_length_unit));
+
+	if (antenna_index >= 0) {
+		const QSignalBlocker blocker(antenna_type_box);
+		antenna_type_box->setCurrentIndex(antenna_index);
+	}
+	if (unit_index >= 0) {
+		const QSignalBlocker blocker(length_unit_box);
+		length_unit_box->setCurrentIndex(unit_index);
+	}
+
+	{
+		const QSignalBlocker blocker(project_title_box);
+		project_title_box->setText(current_project.title);
+	}
+	{
+		const QSignalBlocker blocker(project_notes_edit);
+		project_notes_edit->setPlainText(current_project.notes);
+	}
+	{
+		const QSignalBlocker blocker(velocity_factor_box);
+		velocity_factor_box->setValue(current_project.velocity_factor);
+	}
+	current_length_unit = current_project.preferred_length_unit;
+	configure_length_input();
+	update_target_list();
+	update_project_title();
+	calculate();
+}
+
+void
+MainWindow::build_project_from_ui()
+{
+	current_project.antenna_type = static_cast<calculators::AntennaType>(antenna_type_box->currentData().toInt());
+	current_project.notes = project_notes_edit->toPlainText();
+	current_project.preferred_length_unit = current_length_unit;
+	current_project.title = project_title_box->text().isEmpty() ? QStringLiteral("Untitled Project") : project_title_box->text();
+	current_project.updated_utc = QDateTime::currentDateTimeUtc().toString(Qt::ISODate);
+	current_project.velocity_factor = velocity_factor_box->value();
+}
+
+bool
+MainWindow::confirm_discard_changes()
+{
+	if (!project_dirty)
+		return true;
+
+	const QMessageBox::StandardButton answer = QMessageBox::question(
+		this,
+		QStringLiteral("Unsaved changes"),
+		QStringLiteral("Discard unsaved project changes?"),
+		QMessageBox::Discard | QMessageBox::Cancel,
+		QMessageBox::Cancel
+	);
+
+	return answer == QMessageBox::Discard;
+}
+
+void
+MainWindow::mark_project_dirty()
+{
+	project_dirty = true;
+	update_project_title();
+}
+
+void
+MainWindow::mark_project_dirty_and_recalculate()
+{
+	calculate();
+	mark_project_dirty();
+}
+
+void
+MainWindow::new_project()
+{
+	if (!confirm_discard_changes())
+		return;
+
+	current_project = project::default_project();
+	current_project_path.clear();
+	project_dirty = false;
+	apply_project_to_ui();
+	statusBar()->showMessage(QStringLiteral("New project"));
+}
+
+void
+MainWindow::open_project()
+{
+	if (!confirm_discard_changes())
+		return;
+
+	const QString path = QFileDialog::getOpenFileName(
+		this,
+		QStringLiteral("Open qantcal Project"),
+		QString(),
+		QStringLiteral("qantcal project (*.qantcal.json)")
+	);
+	QString error;
+	project::AntennaProject loaded;
+
+	if (path.isEmpty())
+		return;
+
+	if (!project::load_project(path, loaded, error)) {
+		statusBar()->showMessage(QStringLiteral("Open failed: %1").arg(error));
+		return;
+	}
+
+	current_project = loaded;
+	current_project_path = path;
+	project_dirty = false;
+	apply_project_to_ui();
+	statusBar()->showMessage(QStringLiteral("Opened project: %1").arg(path));
+}
+
+void
+MainWindow::recalculate_targets()
+{
+	current_project.elements.clear();
+	current_project.diagram_items.clear();
+	build_project_from_ui();
+
+	for (const project::AntennaTarget &target : current_project.targets) {
+		if (!target.enabled)
+			continue;
+
+		calculators::AntennaCalculationInput input;
+		input.antenna_type = current_project.antenna_type;
+		input.design_mode = calculators::DesignMode::FrequencyToLength;
+		input.frequency_mhz = target.frequency_mhz;
+		input.shortening_factor = current_project.velocity_factor;
+
+		const calculators::AntennaCalculationResult result = calculators::calculate_antenna(input);
+		if (!result.ok)
+			continue;
+
+		project::AntennaElement element;
+		element.frequency_mhz = target.frequency_mhz;
+		element.label = target.band_name;
+		element.length_metres = result.total_length_m > 0.0 ? result.total_length_m : result.radiator_length_m;
+		element.notes = QStringLiteral("Independent target calculation. Multi-band physical interaction is future work.");
+		element.role = QStringLiteral("calculated_element");
+		current_project.elements.append(element);
+
+		project::DiagramItemDescriptor item;
+		item.kind = QStringLiteral("line");
+		item.label = element.label;
+		item.length_metres = element.length_metres;
+		item.points.append(QPointF(-220.0, 0.0));
+		item.points.append(QPointF(220.0, 0.0));
+		current_project.diagram_items.append(item);
+	}
+
+	update_target_list();
+	design_scene->show_project_diagram(current_project, current_length_unit);
+	result_text->append(QStringLiteral("\nMulti-band note: each target is calculated independently. Fan dipole spacing, traps, common feedpoint impedance, interaction, and NEC modelling are future work."));
+	mark_project_dirty();
+}
+
+void
+MainWindow::remove_selected_target()
+{
+	const int row = target_list->currentRow();
+
+	if (row < 0 || row >= current_project.targets.size())
+		return;
+
+	current_project.targets.removeAt(row);
+	recalculate_targets();
+	mark_project_dirty();
 }
 
 void
@@ -421,11 +672,10 @@ MainWindow::export_pdf()
 	if (path.isEmpty())
 		return;
 
-	const guides::GuideDocument document = guides::create_guide_document(
-		latest_result,
-		current_length_unit,
-		band_box->currentText()
-	);
+	build_project_from_ui();
+	const guides::GuideDocument document = current_project.elements.isEmpty()
+		? guides::create_guide_document(latest_result, current_length_unit, band_box->currentText())
+		: guides::create_project_guide_document(current_project, current_length_unit);
 	const guides::GuideRenderer renderer;
 
 	if (renderer.render_to_pdf(document, path)) {
@@ -575,13 +825,55 @@ void
 MainWindow::save_antenna_type()
 {
 	app_settings.set_antenna_type(static_cast<calculators::AntennaType>(antenna_type_box->currentData().toInt()));
+	mark_project_dirty();
 	calculate();
+}
+
+bool
+MainWindow::save_project()
+{
+	QString error;
+
+	if (current_project_path.isEmpty())
+		return save_project_as();
+
+	build_project_from_ui();
+	if (!project::save_project(current_project, current_project_path, error)) {
+		statusBar()->showMessage(QStringLiteral("Save failed: %1").arg(error));
+		return false;
+	}
+
+	project_dirty = false;
+	update_project_title();
+	statusBar()->showMessage(QStringLiteral("Saved project: %1").arg(current_project_path));
+
+	return true;
+}
+
+bool
+MainWindow::save_project_as()
+{
+	const QString path = QFileDialog::getSaveFileName(
+		this,
+		QStringLiteral("Save qantcal Project"),
+		current_project_path.isEmpty() ? QStringLiteral("untitled.qantcal.json") : current_project_path,
+		QStringLiteral("qantcal project (*.qantcal.json)")
+	);
+
+	if (path.isEmpty())
+		return false;
+
+	current_project_path = path.endsWith(QStringLiteral(".qantcal.json"))
+		? path
+		: path + QStringLiteral(".qantcal.json");
+	return save_project();
 }
 
 void
 MainWindow::save_shortening_factor()
 {
 	app_settings.set_shortening_factor(velocity_factor_box->value());
+	mark_project_dirty();
 	calculate();
 }
 
@@ -620,6 +912,52 @@ calculators::LengthUnit
 MainWindow::selected_length_unit() const
 {
 	return current_length_unit;
+}
+
+void
+MainWindow::target_item_changed(QListWidgetItem *item)
+{
+	const int row = target_list->row(item);
+
+	if (row < 0 || row >= current_project.targets.size())
+		return;
+
+	current_project.targets[row].enabled = item->checkState() == Qt::Checked;
+	recalculate_targets();
+	mark_project_dirty();
+}
+
+void
+MainWindow::update_project_title()
+{
+	QString title = current_project.title;
+
+	if (!current_project_path.isEmpty())
+		title = QFileInfo(current_project_path).fileName();
+	if (title.isEmpty())
+		title = QStringLiteral("Untitled Project");
+	if (project_dirty)
+		title += QStringLiteral(" *");
+
+	setWindowTitle(QStringLiteral("qantcal - %1").arg(title));
+}
+
+void
+MainWindow::update_target_list()
+{
+	const QSignalBlocker blocker(target_list);
+	target_list->clear();
+
+	for (const project::AntennaTarget &target : current_project.targets) {
+		QListWidgetItem *item = new QListWidgetItem(
+			QStringLiteral("%1 - %2 MHz")
+				.arg(target.band_name)
+				.arg(target.frequency_mhz, 0, 'f', 3),
+			target_list
+		);
+		item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
+		item->setCheckState(target.enabled ? Qt::Checked : Qt::Unchecked);
+	}
 }
 
 }

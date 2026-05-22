@@ -6,6 +6,7 @@
 
 #include "calculators/antenna_calculator.h"
 #include "calculators/rf_units.h"
+#include "project/antenna_project.h"
 
 #include <QGraphicsScene>
 
@@ -17,6 +18,10 @@ public:
 
 	void show_antenna_diagram(
 		const calculators::AntennaCalculationResult &result,
+		calculators::LengthUnit length_unit
+	);
+	void show_project_diagram(
+		const project::AntennaProject &project,
 		calculators::LengthUnit length_unit
 	);
 };

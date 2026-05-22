@@ -21,6 +21,14 @@ add_executable(test_radio_horizon_calculator
 	test_radio_horizon_calculator.cpp
 )
 
+add_executable(test_project_file_io
+	test_project_file_io.cpp
+)
+
+add_executable(test_project_serializer
+	test_project_serializer.cpp
+)
+
 add_executable(test_rf_units
 	test_rf_units.cpp
 )
@@ -50,6 +58,16 @@ target_link_libraries(test_lc_resonance_calculator
 )
 
 target_link_libraries(test_radio_horizon_calculator
+	PRIVATE
+		qantcal_core
+)
+
+target_link_libraries(test_project_file_io
+	PRIVATE
+		qantcal_core
+)
+
+target_link_libraries(test_project_serializer
 	PRIVATE
 		qantcal_core
 )
@@ -87,6 +105,16 @@ add_test(
 add_test(
 	NAME test_radio_horizon_calculator
 	COMMAND test_radio_horizon_calculator
+)
+
+add_test(
+	NAME test_project_file_io
+	COMMAND test_project_file_io
+)
+
+add_test(
+	NAME test_project_serializer
+	COMMAND test_project_serializer
 )
 
 add_test(

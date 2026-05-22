@@ -127,4 +127,47 @@ AntennaDesignScene::show_antenna_diagram(
 	}
 }
 
+void
+AntennaDesignScene::show_project_diagram(
+	const project::AntennaProject &project,
+	calculators::LengthUnit length_unit
+)
+{
+	if (project.elements.isEmpty()) {
+		calculators::AntennaCalculationResult result;
+		result.ok = true;
+		result.antenna_type = project.antenna_type;
+		show_antenna_diagram(result, length_unit);
+		return;
+	}
+
+	clear();
+	setSceneRect(-280.0, -180.0, 560.0, 360.0);
+
+	const QPen wire_pen(QColor(30, 90, 150), 4.0);
+	const QPen feed_pen(QColor(170, 60, 40), 2.0);
+	const QBrush feed_brush(QColor(210, 80, 50));
+	const QFont label_font(QStringLiteral("Sans Serif"), 9);
+	double y = -130.0;
+
+	QGraphicsTextItem *title = addText(project.title, label_font);
+	title->setDefaultTextColor(QColor(35, 35, 35));
+	title->setPos(-250.0, -165.0);
+
+	for (const project::AntennaElement &element : project.elements) {
+		const QString label = QStringLiteral("%1 MHz %2: %3")
+			.arg(element.frequency_mhz, 0, 'f', 3)
+			.arg(element.label)
+			.arg(QString::fromStdString(calculators::format_length(element.length_metres, length_unit)));
+
+		addLine(-220.0, y, 220.0, y, wire_pen);
+		addEllipse(-8.0, y - 8.0, 16.0, 16.0, feed_pen, feed_brush);
+		addText(label, label_font)->setPos(-220.0, y + 10.0);
+		y += 58.0;
+
+		if (y > 135.0)
+			break;
+	}
+}
+
 }

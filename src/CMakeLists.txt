@@ -20,6 +20,12 @@ add_library(qantcal_core
 	guides/guide_document.h
 	guides/guide_renderer.cpp
 	guides/guide_renderer.h
+	project/antenna_project.cpp
+	project/antenna_project.h
+	project/project_file_io.cpp
+	project/project_file_io.h
+	project/project_serializer.cpp
+	project/project_serializer.h
 	settings/app_settings.cpp
 	settings/app_settings.h
 )

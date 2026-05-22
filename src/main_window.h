@@ -6,14 +6,19 @@
 
 #include "calculators/antenna_calculator.h"
 #include "design/antenna_design_scene.h"
+#include "project/antenna_project.h"
 #include "settings/app_settings.h"
 
 #include <QMainWindow>
 
+class QCheckBox;
 class QComboBox;
 class QDoubleSpinBox;
 class QGraphicsView;
 class QLabel;
+class QLineEdit;
+class QListWidget;
+class QListWidgetItem;
 class QPushButton;
 class QTabWidget;
 class QTextEdit;
@@ -23,6 +28,9 @@ namespace qantcal {
 class MainWindow : public QMainWindow {
 public:
 	explicit MainWindow(QWidget *parent = nullptr);
+
+protected:
+	void closeEvent(QCloseEvent *event) override;
 
 private:
 	void calculate();
@@ -37,13 +45,28 @@ private:
 	void calculate_lc();
 	void calculate_horizon();
 	void calculate_swr();
+	void add_current_target();
+	void apply_project_to_ui();
+	void build_project_from_ui();
+	bool confirm_discard_changes();
+	void mark_project_dirty();
+	void mark_project_dirty_and_recalculate();
+	void new_project();
+	void open_project();
 	void populate_band_selector();
+	void recalculate_targets();
+	void remove_selected_target();
 	void restore_settings();
 	void save_antenna_type();
+	bool save_project();
+	bool save_project_as();
 	void save_shortening_factor();
 	void set_frequency_from_band(int index);
 	void show_about();
 	void show_print_placeholder();
+	void target_item_changed(QListWidgetItem *item);
+	void update_project_title();
+	void update_target_list();
 	calculators::AntennaCalculationInput current_input() const;
 	calculators::LengthUnit selected_length_unit() const;
 
@@ -65,15 +88,21 @@ private:
 	QDoubleSpinBox *swr_value_box = nullptr;
 	QDoubleSpinBox *velocity_factor_box = nullptr;
 	QGraphicsView *design_view = nullptr;
+	QLineEdit *project_title_box = nullptr;
 	QPushButton *calculate_button = nullptr;
 	QTextEdit *coil_result_text = nullptr;
 	QTextEdit *horizon_result_text = nullptr;
 	QTextEdit *lc_result_text = nullptr;
+	QTextEdit *project_notes_edit = nullptr;
 	QTextEdit *result_text = nullptr;
 	QTextEdit *swr_result_text = nullptr;
+	QListWidget *target_list = nullptr;
+	project::AntennaProject current_project;
+	QString current_project_path;
 	calculators::AntennaCalculationResult latest_result;
 	calculators::LengthUnit current_length_unit = calculators::LengthUnit::Metres;
 	design::AntennaDesignScene *design_scene = nullptr;
+	bool project_dirty = false;
 	settings::AppSettings app_settings;
 };
 
