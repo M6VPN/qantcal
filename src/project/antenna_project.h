@@ -6,6 +6,7 @@
 
 #include "calculators/antenna_calculator.h"
 #include "calculators/rf_units.h"
+#include "calculators/yagi_calculator.h"
 
 #include <QPointF>
 #include <QString>
@@ -39,6 +40,15 @@ struct DiagramItemDescriptor {
 	bool locked = false;
 };
 
+struct YagiProjectDesign {
+	bool enabled = false;
+	int element_count = 3;
+	calculators::YagiPreset preset = calculators::YagiPreset::Conservative;
+	double element_shortening_factor = 0.95;
+	double element_diameter_metres = 0.010;
+	double boom_correction_metres = 0.0;
+};
+
 struct AntennaProject {
 	QString created_utc;
 	QString notes;
@@ -47,6 +57,7 @@ struct AntennaProject {
 	QVector<AntennaElement> elements;
 	QVector<AntennaTarget> targets;
 	QVector<DiagramItemDescriptor> diagram_items;
+	YagiProjectDesign yagi_design;
 	calculators::AntennaType antenna_type = calculators::AntennaType::HalfWaveDipole;
 	calculators::LengthUnit preferred_length_unit = calculators::LengthUnit::Metres;
 	double velocity_factor = calculators::DEFAULT_WIRE_FACTOR;

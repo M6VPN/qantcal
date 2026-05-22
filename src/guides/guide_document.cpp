@@ -133,10 +133,18 @@ create_project_guide_document(
 	document.velocity_factor = project.velocity_factor;
 
 	for (const project::AntennaElement &element : project.elements) {
-		dimensions << QStringLiteral("%1 %2 MHz: %3")
-			.arg(element.label)
-			.arg(element.frequency_mhz, 0, 'f', 3)
-			.arg(QString::fromStdString(calculators::format_length(element.length_metres, length_unit)));
+		if (project.antenna_type == calculators::AntennaType::Yagi) {
+			dimensions << QStringLiteral("%1 %2 MHz %3: %4")
+				.arg(element.label)
+				.arg(element.frequency_mhz, 0, 'f', 3)
+				.arg(element.role)
+				.arg(QString::fromStdString(calculators::format_length(element.length_metres, length_unit)));
+		} else {
+			dimensions << QStringLiteral("%1 %2 MHz: %3")
+				.arg(element.label)
+				.arg(element.frequency_mhz, 0, 'f', 3)
+				.arg(QString::fromStdString(calculators::format_length(element.length_metres, length_unit)));
+		}
 		if (!element.notes.isEmpty())
 			notes << element.notes;
 	}
@@ -149,12 +157,17 @@ create_project_guide_document(
 	document.notes_text = notes.join(QStringLiteral("\n"));
 	document.sections.append(make_text_section(
 		QStringLiteral("Title / project summary"),
-		QStringLiteral("Project: %1\nAntenna: %2\nTargets: %3\nLength unit: %4\nVelocity / shortening factor: %5")
+		QStringLiteral("Project: %1\nAntenna: %2\nTargets: %3\nLength unit: %4\nVelocity / shortening factor: %5%6")
 			.arg(document.project_title)
 			.arg(document.antenna_type)
 			.arg(project.targets.size())
 			.arg(QString::fromStdString(calculators::length_unit_label(length_unit)))
 			.arg(document.velocity_factor, 0, 'f', 3)
+			.arg(project.antenna_type == calculators::AntennaType::Yagi
+				? QStringLiteral("\nYagi elements: %1\nYagi preset: %2")
+					.arg(project.yagi_design.element_count)
+					.arg(calculators::yagi_preset_label(project.yagi_design.preset))
+				: QString())
 	));
 
 	GuideSection targets_section;
@@ -171,6 +184,13 @@ create_project_guide_document(
 	}
 	document.sections.append(targets_section);
 	document.sections.append(dimensions_section(dimensions));
+	if (project.antenna_type == calculators::AntennaType::Yagi) {
+		document.sections.append(make_text_section(
+			QStringLiteral("Yagi construction and tuning notes"),
+			QStringLiteral("Dimensions are starting points. Build elements slightly long where practical and trim while measuring. Driven element feed and matching method is not designed in this pass. Use a balun or choke appropriate to the feed arrangement. Check SWR with an analyser or suitable meter at low power first. Mounting boom and element clamps can affect tuning."),
+			true
+		));
+	}
 	document.sections.append(make_text_section(QStringLiteral("Diagram"), QStringLiteral("Diagram snapshot is rendered from the current design canvas.")));
 	append_standard_sections(document);
 

@@ -34,6 +34,8 @@ antenna_type_to_key(calculators::AntennaType antenna_type)
 		return QStringLiteral("inverted_vee");
 	case calculators::AntennaType::RandomWire:
 		return QStringLiteral("random_wire");
+	case calculators::AntennaType::Yagi:
+		return QStringLiteral("yagi");
 	}
 
 	return QStringLiteral("half_wave_dipole");
@@ -52,6 +54,8 @@ antenna_type_from_key(const QString &key)
 		return calculators::AntennaType::InvertedVee;
 	if (key == QStringLiteral("random_wire"))
 		return calculators::AntennaType::RandomWire;
+	if (key == QStringLiteral("yagi"))
+		return calculators::AntennaType::Yagi;
 
 	return calculators::AntennaType::HalfWaveDipole;
 }

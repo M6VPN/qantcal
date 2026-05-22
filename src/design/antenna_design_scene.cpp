@@ -9,6 +9,7 @@
 #include <QBrush>
 #include <QGraphicsSceneContextMenuEvent>
 #include <QGraphicsSceneMouseEvent>
+#include <QGraphicsLineItem>
 #include <QFont>
 #include <QGraphicsTextItem>
 #include <QInputDialog>
@@ -136,12 +137,79 @@ AntennaDesignScene::show_antenna_diagram(
 		addText(QStringLiteral("counterpoise required"), label_font)->setPos(-65.0, 85.0);
 		break;
 	}
+	case calculators::AntennaType::Yagi:
+		addLine(-230.0, 0.0, 230.0, 0.0, guide_pen);
+		addLine(-170.0, -85.0, -170.0, 85.0, wire_pen);
+		addLine(0.0, -75.0, 0.0, 75.0, wire_pen);
+		addLine(140.0, -65.0, 140.0, 65.0, wire_pen);
+		addEllipse(-12.0, -12.0, 24.0, 24.0, feed_pen, feed_brush);
+		addText(QStringLiteral("Yagi starting layout"), label_font)->setPos(-85.0, -130.0);
+		addText(QStringLiteral("forward direction ->"), label_font)->setPos(85.0, 30.0);
+		break;
 	}
 
 	if (!result.ok) {
 		QGraphicsTextItem *error = addText(QString::fromStdString(result.error), label_font);
 		error->setDefaultTextColor(QColor(150, 40, 35));
 		error->setPos(-250.0, 135.0);
+	}
+}
+
+void
+AntennaDesignScene::show_yagi_diagram(
+	const calculators::YagiDesignResult &result,
+	calculators::LengthUnit length_unit
+)
+{
+	clear();
+	setSceneRect(-320.0, -210.0, 640.0, 420.0);
+
+	const QPen boom_pen(QColor(90, 90, 90), 3.0);
+	const QPen wire_pen(QColor(30, 90, 150), 4.0);
+	const QPen feed_pen(QColor(170, 60, 40), 3.0);
+	const QBrush feed_brush(QColor(210, 80, 50));
+	const QFont label_font(QStringLiteral("Sans Serif"), 9);
+	const double left = -250.0;
+	const double right = 250.0;
+	const double boom_y = 0.0;
+	const double scale = result.boom_length_metres > 0.0
+		? (right - left) / result.boom_length_metres
+		: 1.0;
+
+	QGraphicsTextItem *title = addText(QStringLiteral("Yagi top view"), label_font);
+	title->setDefaultTextColor(QColor(35, 35, 35));
+	title->setPos(-290.0, -185.0);
+
+	if (!result.ok || result.elements.isEmpty()) {
+		QGraphicsTextItem *error = addText(result.error_message.isEmpty() ? QStringLiteral("No Yagi diagram available") : result.error_message, label_font);
+		error->setDefaultTextColor(QColor(150, 40, 35));
+		error->setPos(-250.0, -20.0);
+		return;
+	}
+
+	addLine(left, boom_y, right, boom_y, boom_pen);
+	addText(
+		length_label(QStringLiteral("boom"), result.boom_length_metres, length_unit),
+		label_font
+	)->setPos(left, 24.0);
+	addLine(right - 45.0, -38.0, right, -38.0, feed_pen);
+	addLine(right, -38.0, right - 13.0, -45.0, feed_pen);
+	addLine(right, -38.0, right - 13.0, -31.0, feed_pen);
+	addText(QStringLiteral("forward direction"), label_font)->setPos(right - 135.0, -64.0);
+
+	for (const calculators::YagiElement &element : result.elements) {
+		const double x = left + (element.position_from_reflector_metres * scale);
+		const double half_pixels = 45.0 + (element.length_metres / result.elements[0].length_metres * 55.0);
+		QGraphicsLineItem *line = addLine(x, -half_pixels, x, half_pixels, wire_pen);
+		line->setFlag(QGraphicsItem::ItemIsSelectable, true);
+		if (element.role == calculators::YagiElementRole::Driven)
+			addEllipse(x - 9.0, -9.0, 18.0, 18.0, feed_pen, feed_brush);
+		addText(
+			QStringLiteral("%1\n%2")
+				.arg(element.label)
+				.arg(QString::fromStdString(calculators::format_length(element.length_metres, length_unit))),
+			label_font
+		)->setPos(x - 38.0, half_pixels + 8.0);
 	}
 }
 

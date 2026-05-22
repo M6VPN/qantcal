@@ -48,6 +48,22 @@ sample_project(int target_count)
 	return project;
 }
 
+qantcal::project::AntennaProject
+sample_yagi_project()
+{
+	qantcal::project::AntennaProject project = sample_project(1);
+
+	project.antenna_type = qantcal::calculators::AntennaType::Yagi;
+	project.yagi_design.enabled = true;
+	project.yagi_design.element_count = 5;
+	project.yagi_design.preset = qantcal::calculators::YagiPreset::Compact;
+	project.yagi_design.element_shortening_factor = 0.94;
+	project.yagi_design.element_diameter_metres = 0.012;
+	project.yagi_design.boom_correction_metres = 0.005;
+
+	return project;
+}
+
 void
 test_default_round_trip()
 {
@@ -177,6 +193,19 @@ test_unknown_field_ignored()
 }
 
 void
+test_older_project_without_yagi_design_loads()
+{
+	QJsonObject object = qantcal::project::to_json(sample_project(1));
+	qantcal::project::AntennaProject parsed;
+	QString error;
+
+	object.remove(QStringLiteral("yagiDesign"));
+
+	assert(qantcal::project::from_json(object, parsed, error));
+	assert(!parsed.yagi_design.enabled);
+}
+
+void
 test_unsupported_schema_rejected()
 {
 	QJsonObject object = qantcal::project::to_json(sample_project(1));
@@ -187,6 +216,23 @@ test_unsupported_schema_rejected()
 
 	assert(!qantcal::project::from_json(object, parsed, error));
 	assert(!error.isEmpty());
+}
+
+void
+test_yagi_design_round_trip()
+{
+	const qantcal::project::AntennaProject project = sample_yagi_project();
+	qantcal::project::AntennaProject parsed;
+	QString error;
+
+	assert(qantcal::project::from_json(qantcal::project::to_json(project), parsed, error));
+	assert(parsed.antenna_type == qantcal::calculators::AntennaType::Yagi);
+	assert(parsed.yagi_design.enabled);
+	assert(parsed.yagi_design.element_count == 5);
+	assert(parsed.yagi_design.preset == qantcal::calculators::YagiPreset::Compact);
+	assert(parsed.yagi_design.element_shortening_factor == 0.94);
+	assert(parsed.yagi_design.element_diameter_metres == 0.012);
+	assert(parsed.yagi_design.boom_correction_metres == 0.005);
 }
 
 }
@@ -201,9 +247,11 @@ main()
 	test_negative_frequency_rejected();
 	test_negative_length_rejected();
 	test_one_target_round_trip();
+	test_older_project_without_yagi_design_loads();
 	test_round_trip_preserves_diagram_fields();
 	test_unknown_field_ignored();
 	test_unsupported_schema_rejected();
+	test_yagi_design_round_trip();
 
 	return 0;
 }

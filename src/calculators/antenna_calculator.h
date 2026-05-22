@@ -19,7 +19,8 @@ enum class AntennaType {
 	EndFedHalfWave,
 	FullWaveLoop,
 	InvertedVee,
-	RandomWire
+	RandomWire,
+	Yagi
 };
 
 enum class DesignMode {

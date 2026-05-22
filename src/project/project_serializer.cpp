@@ -15,6 +15,12 @@ is_valid_factor(double factor)
 	return factor >= calculators::MIN_WIRE_FACTOR && factor <= calculators::MAX_WIRE_FACTOR;
 }
 
+bool
+is_valid_yagi_factor(double factor)
+{
+	return factor >= 0.85 && factor <= 1.00;
+}
+
 QJsonObject
 diagram_item_to_json(const DiagramItemDescriptor &item)
 {
@@ -36,6 +42,20 @@ diagram_item_to_json(const DiagramItemDescriptor &item)
 	object.insert(QStringLiteral("points"), points);
 	object.insert(QStringLiteral("position_x"), item.position.x());
 	object.insert(QStringLiteral("position_y"), item.position.y());
+
+	return object;
+}
+
+QJsonObject
+yagi_design_to_json(const YagiProjectDesign &design)
+{
+	QJsonObject object;
+
+	object.insert(QStringLiteral("boomCorrectionMetres"), design.boom_correction_metres);
+	object.insert(QStringLiteral("elementCount"), design.element_count);
+	object.insert(QStringLiteral("elementDiameterMetres"), design.element_diameter_metres);
+	object.insert(QStringLiteral("elementShorteningFactor"), design.element_shortening_factor);
+	object.insert(QStringLiteral("preset"), calculators::yagi_preset_key(design.preset));
 
 	return object;
 }
@@ -153,6 +173,45 @@ read_targets(const QJsonArray &array, QVector<AntennaTarget> &targets, QString &
 	return true;
 }
 
+bool
+read_yagi_design(const QJsonObject &object, YagiProjectDesign &design, QString &error_message)
+{
+	if (!object.contains(QStringLiteral("yagiDesign")))
+		return true;
+
+	const QJsonObject yagi_object = object.value(QStringLiteral("yagiDesign")).toObject();
+	const int element_count = yagi_object.value(QStringLiteral("elementCount")).toInt(3);
+	const double element_shortening_factor = yagi_object.value(QStringLiteral("elementShorteningFactor")).toDouble(0.95);
+	const double element_diameter_metres = yagi_object.value(QStringLiteral("elementDiameterMetres")).toDouble(0.010);
+	const double boom_correction_metres = yagi_object.value(QStringLiteral("boomCorrectionMetres")).toDouble(0.0);
+
+	if (element_count < 2 || element_count > 10) {
+		error_message = QStringLiteral("Yagi element count must be between 2 and 10.");
+		return false;
+	}
+	if (!is_valid_yagi_factor(element_shortening_factor)) {
+		error_message = QStringLiteral("Yagi element shortening factor must be between 0.85 and 1.00.");
+		return false;
+	}
+	if (element_diameter_metres < 0.0) {
+		error_message = QStringLiteral("Yagi element diameter cannot be negative.");
+		return false;
+	}
+	if (boom_correction_metres < 0.0) {
+		error_message = QStringLiteral("Yagi boom correction cannot be negative.");
+		return false;
+	}
+
+	design.enabled = true;
+	design.element_count = element_count;
+	design.element_shortening_factor = element_shortening_factor;
+	design.element_diameter_metres = element_diameter_metres;
+	design.boom_correction_metres = boom_correction_metres;
+	design.preset = calculators::yagi_preset_from_key(yagi_object.value(QStringLiteral("preset")).toString());
+
+	return true;
+}
+
 }
 
 bool
@@ -186,6 +245,8 @@ from_json(const QJsonObject &object, AntennaProject &project, QString &error_mes
 		return false;
 	if (!read_diagram_items(object.value(QStringLiteral("diagram_items")).toArray(), parsed.diagram_items, error_message))
 		return false;
+	if (!read_yagi_design(object, parsed.yagi_design, error_message))
+		return false;
 
 	project = parsed;
 
@@ -218,6 +279,8 @@ to_json(const AntennaProject &project)
 	object.insert(QStringLiteral("title"), project.title);
 	object.insert(QStringLiteral("updated_utc"), project.updated_utc);
 	object.insert(QStringLiteral("velocity_factor"), project.velocity_factor);
+	if (project.yagi_design.enabled)
+		object.insert(QStringLiteral("yagiDesign"), yagi_design_to_json(project.yagi_design));
 
 	return object;
 }

@@ -5,6 +5,7 @@
 #define QANTCAL_MAIN_WINDOW_H
 
 #include "calculators/antenna_calculator.h"
+#include "calculators/yagi_calculator.h"
 #include "design/antenna_design_scene.h"
 #include "design/antenna_design_view.h"
 #include "project/antenna_project.h"
@@ -15,11 +16,13 @@
 class QCheckBox;
 class QComboBox;
 class QDoubleSpinBox;
+class QGroupBox;
 class QLabel;
 class QLineEdit;
 class QListWidget;
 class QListWidgetItem;
 class QPushButton;
+class QSpinBox;
 class QTabWidget;
 class QTextEdit;
 class QUndoStack;
@@ -42,6 +45,7 @@ private:
 	void create_central_widget();
 	void create_rf_calculators_tab(QTabWidget *tabs);
 	void export_pdf();
+	void calculate_yagi();
 	void calculate_coil();
 	void calculate_lc();
 	void calculate_horizon();
@@ -69,13 +73,16 @@ private:
 	void update_diagram_item_descriptor(const project::DiagramItemDescriptor &descriptor);
 	void update_project_title();
 	void update_target_list();
+	void update_yagi_controls();
 	calculators::AntennaCalculationInput current_input() const;
+	calculators::YagiDesignInput current_yagi_input() const;
 	calculators::LengthUnit selected_length_unit() const;
 
 	QComboBox *antenna_type_box = nullptr;
 	QComboBox *band_box = nullptr;
 	QComboBox *design_mode_box = nullptr;
 	QComboBox *length_unit_box = nullptr;
+	QComboBox *yagi_preset_box = nullptr;
 	QDoubleSpinBox *frequency_box = nullptr;
 	QDoubleSpinBox *coil_diameter_box = nullptr;
 	QDoubleSpinBox *coil_length_box = nullptr;
@@ -89,7 +96,10 @@ private:
 	QDoubleSpinBox *swr_forward_power_box = nullptr;
 	QDoubleSpinBox *swr_value_box = nullptr;
 	QDoubleSpinBox *velocity_factor_box = nullptr;
+	QDoubleSpinBox *yagi_boom_correction_box = nullptr;
+	QDoubleSpinBox *yagi_element_diameter_box = nullptr;
 	design::AntennaDesignView *design_view = nullptr;
+	QGroupBox *yagi_group = nullptr;
 	QLineEdit *project_title_box = nullptr;
 	QPushButton *calculate_button = nullptr;
 	QTextEdit *coil_result_text = nullptr;
@@ -98,10 +108,12 @@ private:
 	QTextEdit *project_notes_edit = nullptr;
 	QTextEdit *result_text = nullptr;
 	QTextEdit *swr_result_text = nullptr;
+	QSpinBox *yagi_element_count_box = nullptr;
 	QListWidget *target_list = nullptr;
 	project::AntennaProject current_project;
 	QString current_project_path;
 	calculators::AntennaCalculationResult latest_result;
+	calculators::YagiDesignResult latest_yagi_result;
 	calculators::LengthUnit current_length_unit = calculators::LengthUnit::Metres;
 	design::AntennaDesignScene *design_scene = nullptr;
 	bool project_dirty = false;

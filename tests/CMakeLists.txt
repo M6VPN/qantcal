@@ -49,6 +49,10 @@ add_executable(test_swr_calculator
 	test_swr_calculator.cpp
 )
 
+add_executable(test_yagi_calculator
+	test_yagi_calculator.cpp
+)
+
 target_link_libraries(test_antenna_calculator
 	PRIVATE
 		qantcal_core
@@ -105,6 +109,11 @@ target_link_libraries(test_rf_units
 )
 
 target_link_libraries(test_swr_calculator
+	PRIVATE
+		qantcal_core
+)
+
+target_link_libraries(test_yagi_calculator
 	PRIVATE
 		qantcal_core
 )
@@ -167,4 +176,9 @@ add_test(
 add_test(
 	NAME test_swr_calculator
 	COMMAND test_swr_calculator
+)
+
+add_test(
+	NAME test_yagi_calculator
+	COMMAND test_yagi_calculator
 )

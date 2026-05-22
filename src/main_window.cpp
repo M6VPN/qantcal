@@ -9,6 +9,7 @@
 #include "calculators/radio_horizon_calculator.h"
 #include "calculators/rf_units.h"
 #include "calculators/swr_calculator.h"
+#include "calculators/yagi_calculator.h"
 #include "design/antenna_design_view.h"
 #include "guides/guide_document.h"
 #include "guides/guide_renderer.h"
@@ -33,6 +34,7 @@
 #include <QPushButton>
 #include <QSignalBlocker>
 #include <QSplitter>
+#include <QSpinBox>
 #include <QStatusBar>
 #include <QTabWidget>
 #include <QTextEdit>
@@ -87,6 +89,42 @@ result_to_text(const calculators::AntennaCalculationResult &result, calculators:
 	return text;
 }
 
+QString
+yagi_result_to_text(const calculators::YagiDesignResult &result, calculators::LengthUnit length_unit)
+{
+	if (!result.ok)
+		return QStringLiteral("Input error: %1").arg(result.error_message);
+
+	QString text;
+	text += QStringLiteral("Frequency: %1\n")
+		.arg(QString::fromStdString(calculators::format_mhz(result.frequency_mhz)));
+	text += QStringLiteral("Wavelength: %1\n")
+		.arg(QString::fromStdString(calculators::format_length(result.wavelength_metres, length_unit)));
+	text += QStringLiteral("Boom length: %1\n")
+		.arg(QString::fromStdString(calculators::format_length(result.boom_length_metres, length_unit)));
+	text += QStringLiteral("Length unit: %1\n\n")
+		.arg(QString::fromStdString(calculators::length_unit_label(length_unit)));
+	text += QStringLiteral("Element | Role | Length | Half-length | Spacing | Position | Notes\n");
+
+	for (int i = 0; i < result.elements.size(); ++i) {
+		const calculators::YagiElement &element = result.elements[i];
+		text += QStringLiteral("%1 | %2 | %3 | %4 | %5 | %6 | %7\n")
+			.arg(i + 1)
+			.arg(calculators::yagi_element_role_label(element.role))
+			.arg(QString::fromStdString(calculators::format_length(element.length_metres, length_unit)))
+			.arg(QString::fromStdString(calculators::format_length(element.half_length_metres, length_unit)))
+			.arg(QString::fromStdString(calculators::format_length(element.spacing_from_previous_metres, length_unit)))
+			.arg(QString::fromStdString(calculators::format_length(element.position_from_reflector_metres, length_unit)))
+			.arg(element.notes);
+	}
+
+	text += QStringLiteral("\nAssumptions:\n%1\n").arg(result.assumptions.join(QStringLiteral("\n")));
+	text += QStringLiteral("\nConstruction notes:\n%1\n").arg(result.construction_notes.join(QStringLiteral("\n")));
+	text += QStringLiteral("\nTuning notes:\n%1\n").arg(result.tuning_notes.join(QStringLiteral("\n")));
+
+	return text;
+}
+
 QDoubleSpinBox *
 create_positive_spin_box(QWidget *parent, double maximum, int decimals, const QString &suffix, double value)
 {
@@ -119,10 +157,16 @@ MainWindow::MainWindow(QWidget *parent)
 void
 MainWindow::calculate()
 {
+	if (static_cast<calculators::AntennaType>(antenna_type_box->currentData().toInt()) == calculators::AntennaType::Yagi) {
+		calculate_yagi();
+		return;
+	}
+
 	const calculators::AntennaCalculationInput input = current_input();
 	const calculators::AntennaCalculationResult result = calculators::calculate_antenna(input);
 
 	latest_result = result;
+	latest_yagi_result = calculators::YagiDesignResult();
 	result_text->setPlainText(result_to_text(result, current_length_unit));
 	build_project_from_ui();
 	if (current_project.targets.isEmpty())
@@ -143,6 +187,8 @@ MainWindow::change_length_unit(int index)
 {
 	const calculators::LengthUnit new_unit = static_cast<calculators::LengthUnit>(length_unit_box->itemData(index).toInt());
 	const double length_m = calculators::length_unit_to_metres(length_box->value(), current_length_unit);
+	const double yagi_diameter_m = calculators::length_unit_to_metres(yagi_element_diameter_box->value(), current_length_unit);
+	const double yagi_boom_correction_m = calculators::length_unit_to_metres(yagi_boom_correction_box->value(), current_length_unit);
 
 	current_length_unit = new_unit;
 	configure_length_input();
@@ -150,6 +196,14 @@ MainWindow::change_length_unit(int index)
 	{
 		const QSignalBlocker blocker(length_box);
 		length_box->setValue(calculators::metres_to_length_unit(length_m, current_length_unit));
+	}
+	{
+		const QSignalBlocker blocker(yagi_element_diameter_box);
+		yagi_element_diameter_box->setValue(calculators::metres_to_length_unit(yagi_diameter_m, current_length_unit));
+	}
+	{
+		const QSignalBlocker blocker(yagi_boom_correction_box);
+		yagi_boom_correction_box->setValue(calculators::metres_to_length_unit(yagi_boom_correction_m, current_length_unit));
 	}
 
 	app_settings.set_length_unit(current_length_unit);
@@ -192,6 +246,16 @@ MainWindow::configure_length_input()
 		length_box->setSuffix(QStringLiteral(" ft"));
 		break;
 	}
+
+	if (yagi_element_diameter_box == nullptr || yagi_boom_correction_box == nullptr)
+		return;
+
+	yagi_element_diameter_box->setSuffix(length_box->suffix());
+	yagi_boom_correction_box->setSuffix(length_box->suffix());
+	yagi_element_diameter_box->setDecimals(length_box->decimals());
+	yagi_boom_correction_box->setDecimals(length_box->decimals());
+	yagi_element_diameter_box->setSingleStep(length_box->singleStep());
+	yagi_boom_correction_box->setSingleStep(length_box->singleStep());
 }
 
 void
@@ -292,6 +356,7 @@ MainWindow::create_antenna_tab(QTabWidget *tabs)
 	antenna_type_box->addItem(QStringLiteral("Full-wave loop"), static_cast<int>(calculators::AntennaType::FullWaveLoop));
 	antenna_type_box->addItem(QStringLiteral("Inverted Vee"), static_cast<int>(calculators::AntennaType::InvertedVee));
 	antenna_type_box->addItem(QStringLiteral("Random wire"), static_cast<int>(calculators::AntennaType::RandomWire));
+	antenna_type_box->addItem(QStringLiteral("Yagi"), static_cast<int>(calculators::AntennaType::Yagi));
 
 	design_mode_box->addItem(QStringLiteral("Frequency to length"), static_cast<int>(calculators::DesignMode::FrequencyToLength));
 	design_mode_box->addItem(QStringLiteral("Length to frequency"), static_cast<int>(calculators::DesignMode::LengthToFrequency));
@@ -315,6 +380,29 @@ MainWindow::create_antenna_tab(QTabWidget *tabs)
 	velocity_factor_box->setValue(calculators::DEFAULT_WIRE_FACTOR);
 	project_title_box->setText(current_project.title);
 	project_notes_edit->setMaximumHeight(80);
+	yagi_group = new QGroupBox(QStringLiteral("Yagi design"), input_group);
+	QFormLayout *yagi_layout = new QFormLayout(yagi_group);
+	yagi_element_count_box = new QSpinBox(yagi_group);
+	yagi_preset_box = new QComboBox(yagi_group);
+	yagi_element_diameter_box = new QDoubleSpinBox(yagi_group);
+	yagi_boom_correction_box = new QDoubleSpinBox(yagi_group);
+
+	yagi_element_count_box->setRange(2, 10);
+	yagi_element_count_box->setValue(3);
+	yagi_preset_box->addItem(calculators::yagi_preset_label(calculators::YagiPreset::Conservative), static_cast<int>(calculators::YagiPreset::Conservative));
+	yagi_preset_box->addItem(calculators::yagi_preset_label(calculators::YagiPreset::Compact), static_cast<int>(calculators::YagiPreset::Compact));
+	yagi_preset_box->addItem(calculators::yagi_preset_label(calculators::YagiPreset::LongBoom), static_cast<int>(calculators::YagiPreset::LongBoom));
+	yagi_element_diameter_box->setRange(0.0, 10000.0);
+	yagi_element_diameter_box->setDecimals(3);
+	yagi_element_diameter_box->setValue(0.010);
+	yagi_boom_correction_box->setRange(0.0, 10000.0);
+	yagi_boom_correction_box->setDecimals(3);
+	yagi_boom_correction_box->setValue(0.0);
+	yagi_layout->addRow(QStringLiteral("Elements"), yagi_element_count_box);
+	yagi_layout->addRow(QStringLiteral("Preset"), yagi_preset_box);
+	yagi_layout->addRow(QStringLiteral("Element diameter"), yagi_element_diameter_box);
+	yagi_layout->addRow(QStringLiteral("Boom correction"), yagi_boom_correction_box);
+	configure_length_input();
 
 	input_layout->addRow(QStringLiteral("Project title"), project_title_box);
 	input_layout->addRow(QStringLiteral("Band"), band_box);
@@ -324,6 +412,7 @@ MainWindow::create_antenna_tab(QTabWidget *tabs)
 	input_layout->addRow(QStringLiteral("Frequency"), frequency_box);
 	input_layout->addRow(QStringLiteral("Wire / element length"), length_box);
 	input_layout->addRow(QStringLiteral("Shortening factor"), velocity_factor_box);
+	input_layout->addRow(yagi_group);
 	input_layout->addRow(QStringLiteral("Project notes"), project_notes_edit);
 	input_layout->addRow(calculate_button);
 
@@ -381,6 +470,11 @@ MainWindow::create_antenna_tab(QTabWidget *tabs)
 	connect(remove_target_button, &QPushButton::clicked, this, &MainWindow::remove_selected_target);
 	connect(target_list, &QListWidget::itemChanged, this, &MainWindow::target_item_changed);
 	connect(velocity_factor_box, &QDoubleSpinBox::valueChanged, this, &MainWindow::save_shortening_factor);
+	connect(yagi_boom_correction_box, &QDoubleSpinBox::valueChanged, this, &MainWindow::mark_project_dirty_and_recalculate);
+	connect(yagi_element_count_box, &QSpinBox::valueChanged, this, &MainWindow::mark_project_dirty_and_recalculate);
+	connect(yagi_element_diameter_box, &QDoubleSpinBox::valueChanged, this, &MainWindow::mark_project_dirty_and_recalculate);
+	connect(yagi_preset_box, &QComboBox::currentIndexChanged, this, &MainWindow::mark_project_dirty_and_recalculate);
+	update_yagi_controls();
 }
 
 void
@@ -509,6 +603,7 @@ MainWindow::apply_project_to_ui()
 {
 	const int antenna_index = antenna_type_box->findData(static_cast<int>(current_project.antenna_type));
 	const int unit_index = length_unit_box->findData(static_cast<int>(current_project.preferred_length_unit));
+	const int preset_index = yagi_preset_box->findData(static_cast<int>(current_project.yagi_design.preset));
 
 	if (antenna_index >= 0) {
 		const QSignalBlocker blocker(antenna_type_box);
@@ -531,8 +626,27 @@ MainWindow::apply_project_to_ui()
 		const QSignalBlocker blocker(velocity_factor_box);
 		velocity_factor_box->setValue(current_project.velocity_factor);
 	}
+	if (current_project.yagi_design.enabled) {
+		{
+			const QSignalBlocker blocker(yagi_element_count_box);
+			yagi_element_count_box->setValue(current_project.yagi_design.element_count);
+		}
+		if (preset_index >= 0) {
+			const QSignalBlocker blocker(yagi_preset_box);
+			yagi_preset_box->setCurrentIndex(preset_index);
+		}
+		{
+			const QSignalBlocker blocker(yagi_element_diameter_box);
+			yagi_element_diameter_box->setValue(calculators::metres_to_length_unit(current_project.yagi_design.element_diameter_metres, current_project.preferred_length_unit));
+		}
+		{
+			const QSignalBlocker blocker(yagi_boom_correction_box);
+			yagi_boom_correction_box->setValue(calculators::metres_to_length_unit(current_project.yagi_design.boom_correction_metres, current_project.preferred_length_unit));
+		}
+	}
 	current_length_unit = current_project.preferred_length_unit;
 	configure_length_input();
+	update_yagi_controls();
 	update_target_list();
 	update_project_title();
 	calculate();
@@ -547,6 +661,12 @@ MainWindow::build_project_from_ui()
 	current_project.title = project_title_box->text().isEmpty() ? QStringLiteral("Untitled Project") : project_title_box->text();
 	current_project.updated_utc = QDateTime::currentDateTimeUtc().toString(Qt::ISODate);
 	current_project.velocity_factor = velocity_factor_box->value();
+	current_project.yagi_design.enabled = current_project.antenna_type == calculators::AntennaType::Yagi;
+	current_project.yagi_design.element_count = yagi_element_count_box->value();
+	current_project.yagi_design.preset = static_cast<calculators::YagiPreset>(yagi_preset_box->currentData().toInt());
+	current_project.yagi_design.element_shortening_factor = velocity_factor_box->value();
+	current_project.yagi_design.element_diameter_metres = calculators::length_unit_to_metres(yagi_element_diameter_box->value(), current_length_unit);
+	current_project.yagi_design.boom_correction_metres = calculators::length_unit_to_metres(yagi_boom_correction_box->value(), current_length_unit);
 }
 
 bool
@@ -634,6 +754,34 @@ MainWindow::recalculate_targets()
 		if (!target.enabled)
 			continue;
 
+		if (current_project.antenna_type == calculators::AntennaType::Yagi) {
+			calculators::YagiDesignInput input = current_yagi_input();
+			input.frequency_mhz = target.frequency_mhz;
+			const calculators::YagiDesignResult result = calculators::calculate_yagi(input);
+			if (!result.ok)
+				continue;
+			for (const calculators::YagiElement &yagi_element : result.elements) {
+				project::AntennaElement element;
+				element.frequency_mhz = target.frequency_mhz;
+				element.label = QStringLiteral("%1 %2").arg(target.band_name).arg(yagi_element.label);
+				element.length_metres = yagi_element.length_metres;
+				element.notes = yagi_element.notes;
+				element.role = calculators::yagi_element_role_label(yagi_element.role).toLower();
+				current_project.elements.append(element);
+
+				project::DiagramItemDescriptor item;
+				item.id = QStringLiteral("target-%1-%2").arg(target.frequency_mhz, 0, 'f', 3).arg(yagi_element.label);
+				item.kind = QStringLiteral("yagi_element");
+				item.label = element.label;
+				item.length_metres = element.length_metres;
+				item.position = QPointF(yagi_element.position_from_reflector_metres * 120.0, 0.0);
+				item.points.append(QPointF(0.0, -80.0));
+				item.points.append(QPointF(0.0, 80.0));
+				current_project.diagram_items.append(item);
+			}
+			continue;
+		}
+
 		calculators::AntennaCalculationInput input;
 		input.antenna_type = current_project.antenna_type;
 		input.design_mode = calculators::DesignMode::FrequencyToLength;
@@ -684,7 +832,7 @@ MainWindow::remove_selected_target()
 void
 MainWindow::export_pdf()
 {
-	if (!latest_result.ok) {
+	if (!latest_result.ok && !latest_yagi_result.ok && current_project.elements.isEmpty()) {
 		statusBar()->showMessage(QStringLiteral("Export failed: calculate a valid antenna first"));
 		return;
 	}
@@ -759,6 +907,48 @@ MainWindow::calculate_horizon()
 }
 
 void
+MainWindow::calculate_yagi()
+{
+	const calculators::YagiDesignInput input = current_yagi_input();
+	const calculators::YagiDesignResult result = calculators::calculate_yagi(input);
+
+	latest_result = calculators::AntennaCalculationResult();
+	latest_yagi_result = result;
+	result_text->setPlainText(yagi_result_to_text(result, current_length_unit));
+	build_project_from_ui();
+	current_project.elements.clear();
+	current_project.diagram_items.clear();
+
+	if (result.ok) {
+		for (const calculators::YagiElement &yagi_element : result.elements) {
+			project::AntennaElement element;
+			element.frequency_mhz = result.frequency_mhz;
+			element.label = yagi_element.label;
+			element.length_metres = yagi_element.length_metres;
+			element.notes = yagi_element.notes;
+			element.role = calculators::yagi_element_role_label(yagi_element.role).toLower();
+			current_project.elements.append(element);
+
+			project::DiagramItemDescriptor item;
+			item.id = QStringLiteral("yagi-%1").arg(yagi_element.label);
+			item.kind = QStringLiteral("yagi_element");
+			item.label = yagi_element.label;
+			item.length_metres = yagi_element.length_metres;
+			item.position = QPointF(yagi_element.position_from_reflector_metres * 120.0, 0.0);
+			item.points.append(QPointF(0.0, -80.0));
+			item.points.append(QPointF(0.0, 80.0));
+			current_project.diagram_items.append(item);
+		}
+		design_scene->show_yagi_diagram(result, current_length_unit);
+		statusBar()->showMessage(QStringLiteral("Yagi calculation updated"));
+		return;
+	}
+
+	design_scene->show_project_diagram(current_project, current_length_unit);
+	statusBar()->showMessage(QStringLiteral("Input error: %1").arg(result.error_message));
+}
+
+void
 MainWindow::calculate_lc()
 {
 	calculators::LcResonanceInput input;
@@ -827,12 +1017,17 @@ MainWindow::restore_settings()
 	}
 
 	configure_length_input();
+	{
+		const QSignalBlocker blocker(yagi_element_diameter_box);
+		yagi_element_diameter_box->setValue(calculators::metres_to_length_unit(0.010, current_length_unit));
+	}
 
 	const int antenna_index = antenna_type_box->findData(static_cast<int>(app_settings.antenna_type()));
 	if (antenna_index >= 0) {
 		const QSignalBlocker blocker(antenna_type_box);
 		antenna_type_box->setCurrentIndex(antenna_index);
 	}
+	update_yagi_controls();
 
 	const int band_index = app_settings.band_index();
 	if (band_index >= 0 && band_index < band_box->count()) {
@@ -852,6 +1047,7 @@ void
 MainWindow::save_antenna_type()
 {
 	app_settings.set_antenna_type(static_cast<calculators::AntennaType>(antenna_type_box->currentData().toInt()));
+	update_yagi_controls();
 	mark_project_dirty();
 	calculate();
 }
@@ -917,7 +1113,7 @@ MainWindow::show_about()
 void
 MainWindow::print_guide()
 {
-	if (!latest_result.ok && current_project.elements.isEmpty()) {
+	if (!latest_result.ok && !latest_yagi_result.ok && current_project.elements.isEmpty()) {
 		statusBar()->showMessage(QStringLiteral("Print failed: calculate a valid antenna first"));
 		return;
 	}
@@ -951,6 +1147,22 @@ MainWindow::current_input() const
 	input.frequency_mhz = frequency_box->value();
 	input.length_m = calculators::length_unit_to_metres(length_box->value(), current_length_unit);
 	input.shortening_factor = velocity_factor_box->value();
+
+	return input;
+}
+
+calculators::YagiDesignInput
+MainWindow::current_yagi_input() const
+{
+	calculators::YagiDesignInput input;
+
+	input.frequency_mhz = frequency_box->value();
+	input.element_count = yagi_element_count_box->value();
+	input.element_shortening_factor = velocity_factor_box->value();
+	input.element_diameter_metres = calculators::length_unit_to_metres(yagi_element_diameter_box->value(), current_length_unit);
+	input.boom_correction_metres = calculators::length_unit_to_metres(yagi_boom_correction_box->value(), current_length_unit);
+	input.preset = static_cast<calculators::YagiPreset>(yagi_preset_box->currentData().toInt());
+	input.preferred_length_unit = current_length_unit;
 
 	return input;
 }
@@ -1022,6 +1234,16 @@ MainWindow::update_target_list()
 		item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
 		item->setCheckState(target.enabled ? Qt::Checked : Qt::Unchecked);
 	}
+}
+
+void
+MainWindow::update_yagi_controls()
+{
+	const bool is_yagi = static_cast<calculators::AntennaType>(antenna_type_box->currentData().toInt()) == calculators::AntennaType::Yagi;
+
+	yagi_group->setVisible(is_yagi);
+	design_mode_box->setEnabled(!is_yagi);
+	length_box->setEnabled(!is_yagi);
 }
 
 }

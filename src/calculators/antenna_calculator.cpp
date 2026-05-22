@@ -29,6 +29,7 @@ base_wave_ratio(AntennaType antenna_type)
 	case AntennaType::FullWaveLoop:
 		return 1.0;
 	case AntennaType::RandomWire:
+	case AntennaType::Yagi:
 		return 0.0;
 	}
 
@@ -86,6 +87,7 @@ counterpoise_note_for_type(AntennaType antenna_type)
 	case AntennaType::HalfWaveDipole:
 	case AntennaType::FullWaveLoop:
 	case AntennaType::InvertedVee:
+	case AntennaType::Yagi:
 		return "No separate radial system is calculated for this antenna type.";
 	}
 
@@ -107,6 +109,8 @@ matching_note_for_type(AntennaType antenna_type)
 		return "Loop impedance depends on shape, height, feed point, and surroundings.";
 	case AntennaType::RandomWire:
 		return "Random-wire operation needs tuner and counterpoise modelling before useful length guidance can be claimed.";
+	case AntennaType::Yagi:
+		return "Yagi driven element matching is not designed by the simple wire calculator.";
 	}
 
 	return "";
@@ -125,6 +129,8 @@ trimming_note_for_type(AntennaType antenna_type)
 	case AntennaType::EndFedHalfWave:
 	case AntennaType::FullWaveLoop:
 		return "Starting dimension only. Trim and verify with an analyser, VNA, or SWR checks in the final installation.";
+	case AntennaType::Yagi:
+		return "Use the Yagi designer for empirical starting dimensions. Final dimensions require modelling, measuring, and trimming.";
 	}
 
 	return "Starting dimension only. Trim and verify in the final installation.";
@@ -153,6 +159,7 @@ populate_type_lengths(AntennaCalculationResult &result, AntennaType antenna_type
 		result.total_length_ft = metres_to_feet(length_m);
 		break;
 	case AntennaType::RandomWire:
+	case AntennaType::Yagi:
 		break;
 	}
 }
@@ -183,6 +190,8 @@ antenna_type_label(AntennaType antenna_type)
 		return "Inverted Vee";
 	case AntennaType::RandomWire:
 		return "Random wire";
+	case AntennaType::Yagi:
+		return "Yagi";
 	}
 
 	return "Unknown";
@@ -198,6 +207,8 @@ calculate_antenna(const AntennaCalculationInput &input)
 
 	if (input.antenna_type == AntennaType::RandomWire)
 		return invalid_result(input, "Random-wire resonance is not implemented. Matching and counterpoise modelling are needed first.");
+	if (input.antenna_type == AntennaType::Yagi)
+		return invalid_result(input, "Use the Yagi designer for Yagi starting dimensions.");
 
 	AntennaCalculationResult result;
 	result.ok = true;
