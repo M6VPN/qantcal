@@ -9,6 +9,7 @@
 #include "calculators/radio_horizon_calculator.h"
 #include "calculators/rf_units.h"
 #include "calculators/swr_calculator.h"
+#include "design/antenna_design_view.h"
 #include "guides/guide_document.h"
 #include "guides/guide_renderer.h"
 #include "project/project_file_io.h"
@@ -37,6 +38,7 @@
 #include <QCloseEvent>
 #include <QDateTime>
 #include <QFileInfo>
+#include <QUndoStack>
 
 namespace qantcal {
 
@@ -102,6 +104,7 @@ MainWindow::MainWindow(QWidget *parent)
 	: QMainWindow(parent)
 {
 	current_project = project::default_project();
+	undo_stack = new QUndoStack(this);
 	update_project_title();
 	resize(1100, 720);
 
@@ -216,6 +219,19 @@ MainWindow::create_actions()
 
 	QMenu *help_menu = menuBar()->addMenu(QStringLiteral("&Help"));
 	QAction *about_action = help_menu->addAction(QStringLiteral("About qantcal"));
+	QMenu *edit_menu = menuBar()->addMenu(QStringLiteral("&Edit"));
+	QAction *undo_action = undo_stack->createUndoAction(this, QStringLiteral("Undo"));
+	QAction *redo_action = undo_stack->createRedoAction(this, QStringLiteral("Redo"));
+	QMenu *view_menu = menuBar()->addMenu(QStringLiteral("&View"));
+	QAction *zoom_in_action = view_menu->addAction(QStringLiteral("Zoom In"));
+	QAction *zoom_out_action = view_menu->addAction(QStringLiteral("Zoom Out"));
+	QAction *reset_zoom_action = view_menu->addAction(QStringLiteral("Reset Zoom"));
+	QAction *fit_design_action = view_menu->addAction(QStringLiteral("Fit Design"));
+	QAction *pan_action = view_menu->addAction(QStringLiteral("Pan Mode"));
+	pan_action->setCheckable(true);
+
+	edit_menu->addAction(undo_action);
+	edit_menu->addAction(redo_action);
 
 	connect(new_action, &QAction::triggered, this, &MainWindow::new_project);
 	connect(open_action, &QAction::triggered, this, &MainWindow::open_project);
@@ -225,6 +241,11 @@ MainWindow::create_actions()
 	connect(export_pdf_action, &QAction::triggered, this, &MainWindow::export_pdf);
 	connect(exit_action, &QAction::triggered, this, &QWidget::close);
 	connect(about_action, &QAction::triggered, this, &MainWindow::show_about);
+	connect(zoom_in_action, &QAction::triggered, this, [this]() { design_view->zoom_in(); });
+	connect(zoom_out_action, &QAction::triggered, this, [this]() { design_view->zoom_out(); });
+	connect(reset_zoom_action, &QAction::triggered, this, [this]() { design_view->reset_zoom(); });
+	connect(fit_design_action, &QAction::triggered, this, [this]() { design_view->fit_design(); });
+	connect(pan_action, &QAction::toggled, this, [this](bool enabled) { design_view->set_pan_mode(enabled); });
 }
 
 void
@@ -313,7 +334,11 @@ MainWindow::create_antenna_tab(QTabWidget *tabs)
 	QPushButton *recalculate_targets_button = new QPushButton(QStringLiteral("Recalculate all"), targets_group);
 	QVBoxLayout *targets_layout = new QVBoxLayout(targets_group);
 	design_scene = new design::AntennaDesignScene(workspace);
-	design_view = new QGraphicsView(design_scene, workspace);
+	design_scene->set_undo_stack(undo_stack);
+	design_scene->set_item_moved_callback([this](const project::DiagramItemDescriptor &descriptor) {
+		update_diagram_item_descriptor(descriptor);
+	});
+	design_view = new design::AntennaDesignView(design_scene, workspace);
 	result_text = new QTextEdit(workspace);
 	target_list = new QListWidget(targets_group);
 
@@ -323,7 +348,6 @@ MainWindow::create_antenna_tab(QTabWidget *tabs)
 	targets_layout->addWidget(target_list);
 	targets_layout->addLayout(target_button_layout);
 
-	design_view->setRenderHint(QPainter::Antialiasing);
 	design_view->setMinimumHeight(320);
 	result_text->setReadOnly(true);
 	result_text->setMinimumHeight(160);
@@ -627,6 +651,7 @@ MainWindow::recalculate_targets()
 		current_project.elements.append(element);
 
 		project::DiagramItemDescriptor item;
+		item.id = QStringLiteral("target-%1").arg(target.frequency_mhz, 0, 'f', 3);
 		item.kind = QStringLiteral("line");
 		item.label = element.label;
 		item.length_metres = element.length_metres;
@@ -925,6 +950,23 @@ MainWindow::target_item_changed(QListWidgetItem *item)
 	current_project.targets[row].enabled = item->checkState() == Qt::Checked;
 	recalculate_targets();
 	mark_project_dirty();
+}
+
+void
+MainWindow::update_diagram_item_descriptor(const project::DiagramItemDescriptor &descriptor)
+{
+	for (project::DiagramItemDescriptor &item : current_project.diagram_items) {
+		if (item.id == descriptor.id) {
+			item = descriptor;
+			mark_project_dirty();
+			statusBar()->showMessage(QStringLiteral("Moved design item"));
+			return;
+		}
+	}
+
+	current_project.diagram_items.append(descriptor);
+	mark_project_dirty();
+	statusBar()->showMessage(QStringLiteral("Moved design item"));
 }
 
 void

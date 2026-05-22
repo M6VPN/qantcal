@@ -3,6 +3,8 @@
 
 #include "project/project_serializer.h"
 
+#include <QJsonArray>
+
 #include <cassert>
 
 namespace {
@@ -31,6 +33,17 @@ sample_project(int target_count)
 	element.length_metres = 20.057;
 	element.role = QStringLiteral("leg");
 	project.elements.append(element);
+
+	qantcal::project::DiagramItemDescriptor item;
+	item.id = QStringLiteral("diagram-1");
+	item.kind = QStringLiteral("line");
+	item.label = QStringLiteral("wire");
+	item.length_metres = 20.057;
+	item.locked = false;
+	item.position = QPointF(10.0, 20.0);
+	item.points.append(QPointF(-1.0, 0.0));
+	item.points.append(QPointF(1.0, 0.0));
+	project.diagram_items.append(item);
 
 	return project;
 }
@@ -68,6 +81,26 @@ test_multiple_targets_round_trip()
 	assert(qantcal::project::from_json(qantcal::project::to_json(project), parsed, error));
 	assert(parsed.targets.size() == 3);
 	assert(parsed.elements.size() == 1);
+}
+
+void
+test_missing_diagram_fields_defaults()
+{
+	QJsonObject object = qantcal::project::to_json(sample_project(1));
+	QJsonArray diagram_items;
+	QJsonObject diagram_item;
+	qantcal::project::AntennaProject parsed;
+	QString error;
+
+	diagram_item.insert(QStringLiteral("kind"), QStringLiteral("line"));
+	diagram_item.insert(QStringLiteral("label"), QStringLiteral("legacy wire"));
+	diagram_items.append(diagram_item);
+	object.insert(QStringLiteral("diagram_items"), diagram_items);
+
+	assert(qantcal::project::from_json(object, parsed, error));
+	assert(parsed.diagram_items.size() == 1);
+	assert(parsed.diagram_items[0].position == QPointF(0.0, 0.0));
+	assert(!parsed.diagram_items[0].locked);
 }
 
 void
@@ -109,14 +142,35 @@ test_one_target_round_trip()
 }
 
 void
+test_round_trip_preserves_diagram_fields()
+{
+	const qantcal::project::AntennaProject project = sample_project(1);
+	qantcal::project::AntennaProject parsed;
+	QString error;
+
+	assert(qantcal::project::from_json(qantcal::project::to_json(project), parsed, error));
+	assert(parsed.diagram_items.size() == 1);
+	assert(parsed.diagram_items[0].id == QStringLiteral("diagram-1"));
+	assert(parsed.diagram_items[0].kind == QStringLiteral("line"));
+	assert(parsed.diagram_items[0].label == QStringLiteral("wire"));
+	assert(parsed.diagram_items[0].points.size() == 2);
+	assert(parsed.diagram_items[0].position == QPointF(10.0, 20.0));
+}
+
+void
 test_unknown_field_ignored()
 {
 	const qantcal::project::AntennaProject project = sample_project(1);
 	QJsonObject object = qantcal::project::to_json(project);
+	QJsonArray diagram_items = object.value(QStringLiteral("diagram_items")).toArray();
+	QJsonObject diagram_item = diagram_items[0].toObject();
 	qantcal::project::AntennaProject parsed;
 	QString error;
 
 	object.insert(QStringLiteral("future_field"), QStringLiteral("ignored"));
+	diagram_item.insert(QStringLiteral("future_diagram_field"), QStringLiteral("ignored"));
+	diagram_items.replace(0, diagram_item);
+	object.insert(QStringLiteral("diagram_items"), diagram_items);
 
 	assert(qantcal::project::from_json(object, parsed, error));
 	assert(parsed.title == project.title);
@@ -142,10 +196,12 @@ main()
 {
 	test_default_round_trip();
 	test_length_unit_round_trip();
+	test_missing_diagram_fields_defaults();
 	test_multiple_targets_round_trip();
 	test_negative_frequency_rejected();
 	test_negative_length_rejected();
 	test_one_target_round_trip();
+	test_round_trip_preserves_diagram_fields();
 	test_unknown_field_ignored();
 	test_unsupported_schema_rejected();
 

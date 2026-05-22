@@ -30,10 +30,13 @@ struct AntennaElement {
 };
 
 struct DiagramItemDescriptor {
+	QString id;
 	QString kind;
 	QString label;
 	QVector<QPointF> points;
 	double length_metres = 0.0;
+	QPointF position;
+	bool locked = false;
 };
 
 struct AntennaProject {

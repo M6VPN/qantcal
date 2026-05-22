@@ -29,9 +29,13 @@ diagram_item_to_json(const DiagramItemDescriptor &item)
 	}
 
 	object.insert(QStringLiteral("kind"), item.kind);
+	object.insert(QStringLiteral("id"), item.id);
 	object.insert(QStringLiteral("label"), item.label);
 	object.insert(QStringLiteral("length_metres"), item.length_metres);
+	object.insert(QStringLiteral("locked"), item.locked);
 	object.insert(QStringLiteral("points"), points);
+	object.insert(QStringLiteral("position_x"), item.position.x());
+	object.insert(QStringLiteral("position_y"), item.position.y());
 
 	return object;
 }
@@ -76,8 +80,14 @@ read_diagram_items(const QJsonArray &array, QVector<DiagramItemDescriptor> &item
 		}
 
 		item.kind = object.value(QStringLiteral("kind")).toString();
+		item.id = object.value(QStringLiteral("id")).toString();
 		item.label = object.value(QStringLiteral("label")).toString();
 		item.length_metres = length_metres;
+		item.locked = object.value(QStringLiteral("locked")).toBool(false);
+		item.position = QPointF(
+			object.value(QStringLiteral("position_x")).toDouble(0.0),
+			object.value(QStringLiteral("position_y")).toDouble(0.0)
+		);
 
 		for (const QJsonValue &point_value : object.value(QStringLiteral("points")).toArray()) {
 			const QJsonObject point_object = point_value.toObject();

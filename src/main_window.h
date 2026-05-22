@@ -6,6 +6,7 @@
 
 #include "calculators/antenna_calculator.h"
 #include "design/antenna_design_scene.h"
+#include "design/antenna_design_view.h"
 #include "project/antenna_project.h"
 #include "settings/app_settings.h"
 
@@ -14,7 +15,6 @@
 class QCheckBox;
 class QComboBox;
 class QDoubleSpinBox;
-class QGraphicsView;
 class QLabel;
 class QLineEdit;
 class QListWidget;
@@ -22,6 +22,7 @@ class QListWidgetItem;
 class QPushButton;
 class QTabWidget;
 class QTextEdit;
+class QUndoStack;
 
 namespace qantcal {
 
@@ -65,6 +66,7 @@ private:
 	void show_about();
 	void show_print_placeholder();
 	void target_item_changed(QListWidgetItem *item);
+	void update_diagram_item_descriptor(const project::DiagramItemDescriptor &descriptor);
 	void update_project_title();
 	void update_target_list();
 	calculators::AntennaCalculationInput current_input() const;
@@ -87,7 +89,7 @@ private:
 	QDoubleSpinBox *swr_forward_power_box = nullptr;
 	QDoubleSpinBox *swr_value_box = nullptr;
 	QDoubleSpinBox *velocity_factor_box = nullptr;
-	QGraphicsView *design_view = nullptr;
+	design::AntennaDesignView *design_view = nullptr;
 	QLineEdit *project_title_box = nullptr;
 	QPushButton *calculate_button = nullptr;
 	QTextEdit *coil_result_text = nullptr;
@@ -104,6 +106,7 @@ private:
 	design::AntennaDesignScene *design_scene = nullptr;
 	bool project_dirty = false;
 	settings::AppSettings app_settings;
+	QUndoStack *undo_stack = nullptr;
 };
 
 }

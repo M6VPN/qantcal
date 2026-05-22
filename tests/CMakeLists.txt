@@ -5,6 +5,10 @@ add_executable(test_antenna_calculator
 	test_antenna_calculator.cpp
 )
 
+add_executable(test_antenna_measurement
+	test_antenna_measurement.cpp
+)
+
 add_executable(test_coil_calculator
 	test_coil_calculator.cpp
 )
@@ -40,6 +44,11 @@ add_executable(test_swr_calculator
 target_link_libraries(test_antenna_calculator
 	PRIVATE
 		qantcal_core
+)
+
+target_link_libraries(test_antenna_measurement
+	PRIVATE
+		qantcal_ui
 )
 
 target_link_libraries(test_coil_calculator
@@ -85,6 +94,11 @@ target_link_libraries(test_swr_calculator
 add_test(
 	NAME test_antenna_calculator
 	COMMAND test_antenna_calculator
+)
+
+add_test(
+	NAME test_antenna_measurement
+	COMMAND test_antenna_measurement
 )
 
 add_test(

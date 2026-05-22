@@ -3,12 +3,21 @@
 
 #include "antenna_design_scene.h"
 
+#include "antenna_design_item.h"
+#include "design_commands.h"
+
 #include <QBrush>
+#include <QGraphicsSceneContextMenuEvent>
+#include <QGraphicsSceneMouseEvent>
 #include <QFont>
 #include <QGraphicsTextItem>
+#include <QInputDialog>
+#include <QLineEdit>
+#include <QMenu>
 #include <QPainterPath>
 #include <QPen>
 #include <QPolygonF>
+#include <QUndoStack>
 
 namespace qantcal::design {
 
@@ -23,6 +32,15 @@ length_label(const QString &prefix, double metres, calculators::LengthUnit lengt
 	return QStringLiteral("%1: %2")
 		.arg(prefix)
 		.arg(QString::fromStdString(calculators::format_length(metres, length_unit)));
+}
+
+void
+add_label_for_item(QGraphicsItem *parent, const QString &label, double y_offset)
+{
+	QGraphicsTextItem *text = new QGraphicsTextItem(label, parent);
+
+	text->setDefaultTextColor(QColor(45, 45, 45));
+	text->setPos(0.0, y_offset);
 }
 
 }
@@ -60,8 +78,8 @@ AntennaDesignScene::show_antenna_diagram(
 
 	switch (result.antenna_type) {
 	case calculators::AntennaType::HalfWaveDipole:
-		addLine(-230.0, 0.0, -12.0, 0.0, wire_pen);
-		addLine(12.0, 0.0, 230.0, 0.0, wire_pen);
+		addLine(-230.0, 0.0, -12.0, 0.0, wire_pen)->setFlag(QGraphicsItem::ItemIsSelectable, true);
+		addLine(12.0, 0.0, 230.0, 0.0, wire_pen)->setFlag(QGraphicsItem::ItemIsSelectable, true);
 		addEllipse(-12.0, -12.0, 24.0, 24.0, feed_pen, feed_brush);
 		addLine(0.0, 12.0, 0.0, 95.0, feed_pen);
 		addText(length_label(QStringLiteral("left leg"), result.leg_length_m, length_unit), label_font)->setPos(-220.0, -40.0);
@@ -155,19 +173,115 @@ AntennaDesignScene::show_project_diagram(
 	title->setPos(-250.0, -165.0);
 
 	for (const project::AntennaElement &element : project.elements) {
+		const int element_index = &element - project.elements.constData();
+		project::DiagramItemDescriptor descriptor = element_index < project.diagram_items.size()
+			? project.diagram_items[element_index]
+			: project::DiagramItemDescriptor();
+		if (descriptor.id.isEmpty())
+			descriptor.id = QStringLiteral("element-%1").arg(element.frequency_mhz, 0, 'f', 3);
+		if (descriptor.kind.isEmpty())
+			descriptor.kind = QStringLiteral("line");
+		if (descriptor.label.isEmpty())
+			descriptor.label = element.label;
+		if (descriptor.length_metres <= 0.0)
+			descriptor.length_metres = element.length_metres;
+		if (descriptor.position.isNull())
+			descriptor.position = QPointF(0.0, y);
+		if (descriptor.points.isEmpty())
+			descriptor.points = { QPointF(-220.0, 0.0), QPointF(220.0, 0.0) };
 		const QString label = QStringLiteral("%1 MHz %2: %3")
 			.arg(element.frequency_mhz, 0, 'f', 3)
 			.arg(element.label)
 			.arg(QString::fromStdString(calculators::format_length(element.length_metres, length_unit)));
+		AntennaDesignItem *item = new AntennaDesignItem(descriptor);
 
-		addLine(-220.0, y, 220.0, y, wire_pen);
-		addEllipse(-8.0, y - 8.0, 16.0, 16.0, feed_pen, feed_brush);
-		addText(label, label_font)->setPos(-220.0, y + 10.0);
+		addItem(item);
+		addEllipse(-8.0, y - 8.0, 16.0, 16.0, feed_pen, feed_brush)->setFlag(QGraphicsItem::ItemIsSelectable, true);
+		add_label_for_item(item, label, 10.0);
 		y += 58.0;
 
 		if (y > 135.0)
 			break;
 	}
+}
+
+void
+AntennaDesignScene::contextMenuEvent(QGraphicsSceneContextMenuEvent *event)
+{
+	AntennaDesignItem *item = dynamic_cast<AntennaDesignItem *>(itemAt(event->scenePos(), QTransform()));
+
+	if (item == nullptr) {
+		QGraphicsScene::contextMenuEvent(event);
+		return;
+	}
+
+	QMenu menu;
+	QAction *rename_action = menu.addAction(QStringLiteral("Rename label"));
+	QAction *reset_action = menu.addAction(QStringLiteral("Reset position"));
+	QAction *selected = menu.exec(event->screenPos());
+
+	if (selected == rename_action) {
+		bool ok = false;
+		const QString label = QInputDialog::getText(nullptr, QStringLiteral("Rename label"), QStringLiteral("Label"), QLineEdit::Normal, item->item_label(), &ok);
+		if (ok) {
+			item->set_item_label(label);
+			if (item_moved_callback)
+				item_moved_callback(item->descriptor());
+		}
+		return;
+	}
+	if (selected == reset_action) {
+		const QPointF old_pos = item->pos();
+		const QPointF new_pos(0.0, old_pos.y());
+		if (undo_stack != nullptr)
+			undo_stack->push(new MoveItemCommand(item, old_pos, new_pos, [this, item]() { if (item_moved_callback) item_moved_callback(item->descriptor()); }));
+		else
+			item->setPos(new_pos);
+	}
+}
+
+void
+AntennaDesignScene::mousePressEvent(QGraphicsSceneMouseEvent *event)
+{
+	moving_item = itemAt(event->scenePos(), QTransform());
+	move_start_pos = moving_item != nullptr ? moving_item->pos() : QPointF();
+
+	QGraphicsScene::mousePressEvent(event);
+}
+
+void
+AntennaDesignScene::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
+{
+	QGraphicsScene::mouseReleaseEvent(event);
+
+	if (moving_item == nullptr)
+		return;
+
+	const QPointF end_pos = moving_item->pos();
+	AntennaDesignItem *design_item = dynamic_cast<AntennaDesignItem *>(moving_item);
+
+	if (design_item != nullptr && end_pos != move_start_pos) {
+		if (undo_stack != nullptr) {
+			moving_item->setPos(move_start_pos);
+			undo_stack->push(new MoveItemCommand(design_item, move_start_pos, end_pos, [this, design_item]() { if (item_moved_callback) item_moved_callback(design_item->descriptor()); }));
+		} else if (item_moved_callback) {
+			item_moved_callback(design_item->descriptor());
+		}
+	}
+
+	moving_item = nullptr;
+}
+
+void
+AntennaDesignScene::set_item_moved_callback(std::function<void(const project::DiagramItemDescriptor &)> callback)
+{
+	item_moved_callback = callback;
+}
+
+void
+AntennaDesignScene::set_undo_stack(QUndoStack *stack)
+{
+	undo_stack = stack;
 }
 
 }

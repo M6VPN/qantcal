@@ -42,8 +42,16 @@ target_link_libraries(qantcal_core
 )
 
 add_library(qantcal_ui
+	design/antenna_design_item.cpp
+	design/antenna_design_item.h
 	design/antenna_design_scene.cpp
 	design/antenna_design_scene.h
+	design/antenna_design_view.cpp
+	design/antenna_design_view.h
+	design/antenna_measurement.cpp
+	design/antenna_measurement.h
+	design/design_commands.cpp
+	design/design_commands.h
 	main_window.cpp
 	main_window.h
 )

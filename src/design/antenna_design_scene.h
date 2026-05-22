@@ -9,6 +9,11 @@
 #include "project/antenna_project.h"
 
 #include <QGraphicsScene>
+#include <QPointF>
+
+#include <functional>
+
+class QUndoStack;
 
 namespace qantcal::design {
 
@@ -24,6 +29,19 @@ public:
 		const project::AntennaProject &project,
 		calculators::LengthUnit length_unit
 	);
+	void set_item_moved_callback(std::function<void(const project::DiagramItemDescriptor &)> callback);
+	void set_undo_stack(QUndoStack *stack);
+
+protected:
+	void contextMenuEvent(QGraphicsSceneContextMenuEvent *event) override;
+	void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
+	void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
+
+private:
+	std::function<void(const project::DiagramItemDescriptor &)> item_moved_callback;
+	QGraphicsItem *moving_item = nullptr;
+	QPointF move_start_pos;
+	QUndoStack *undo_stack = nullptr;
 };
 
 }
