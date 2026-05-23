@@ -34,6 +34,8 @@ add_library(qantcal_core
 	project/project_serializer.h
 	reference/band_reference.cpp
 	reference/band_reference.h
+	reference/broadcast_band_reference.cpp
+	reference/broadcast_band_reference.h
 	reference/mode_reference.cpp
 	reference/mode_reference.h
 	reference/propagation_notes.cpp

@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/M6VPN/qantcal/actions/workflows/ci.yml/badge.svg)](https://github.com/M6VPN/qantcal/actions/workflows/ci.yml)
 
-qantcal is an in-progress Qt6 desktop application for amateur radio / RF antenna design and calculation. The goal is to help radio amateurs produce starting dimensions for common antennas, sketch simple designs, and print practical build guides.
+qantcal is an in-progress Qt6 desktop application for amateur radio / RF antenna design and calculation. The goal is to help radio amateurs and shortwave listeners produce starting dimensions for common receive or legally authorised transmit antennas, sketch simple designs, and print practical build guides.
 
 ## Table of Contents
 
@@ -21,7 +21,7 @@ qantcal uses C++17 and Qt6 Widgets; it's very buggy at the moment but can still 
 Progress:
 
 - Qt Widgets main window
-- basic antenna calculator inputs with a convenience ham band selector
+- basic antenna calculator inputs with amateur and broadcast/reference band selectors
 - selectable length units with saved preferences
 - qantcal JSON project save/load groundwork
 - simple schematic diagrams using `QGraphicsScene` and `QGraphicsView`
@@ -30,7 +30,7 @@ Progress:
 - basic PDF export
 - printable PDF export with project sections, assumptions, and safety notes
 - RF helper calculators for air-core coils, LC resonance, SWR/reflected power, and radio horizon
-- band reference and cautious propagation notes
+- amateur band, broadcast/reference band, and cautious propagation notes
 - a small pure C++ calculator test executable
 
 ## Screenshots

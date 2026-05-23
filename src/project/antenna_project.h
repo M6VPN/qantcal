@@ -7,6 +7,7 @@
 #include "calculators/antenna_calculator.h"
 #include "calculators/rf_units.h"
 #include "calculators/yagi_calculator.h"
+#include "reference/band_reference.h"
 #include "reference/mode_reference.h"
 #include "reference/reach_estimator.h"
 
@@ -20,6 +21,7 @@ constexpr int CURRENT_SCHEMA_VERSION = 1;
 
 struct AntennaTarget {
 	QString band_name;
+	reference::BandService band_service = reference::BandService::Unknown;
 	bool enabled = true;
 	double frequency_mhz = 0.0;
 };

@@ -28,6 +28,17 @@ calculate(qantcal::calculators::AntennaType antenna_type, double frequency_mhz)
 }
 
 void
+test_broadcast_49m_dipole()
+{
+	const qantcal::calculators::AntennaCalculationResult result =
+		calculate(qantcal::calculators::AntennaType::HalfWaveDipole, 6.050);
+
+	assert(result.ok);
+	assert(near_value(result.total_length_m, 23.537, 0.010));
+	assert(near_value(result.leg_length_m, 11.768, 0.010));
+}
+
+void
 test_dipole_7_1_mhz()
 {
 	const qantcal::calculators::AntennaCalculationResult result =
@@ -196,6 +207,7 @@ test_reverse_length_to_frequency()
 int
 main()
 {
+	test_broadcast_49m_dipole();
 	test_dipole_7_1_mhz();
 	test_efhw_equals_half_wave_starting_length();
 	test_full_wave_loop();

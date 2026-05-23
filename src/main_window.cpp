@@ -3,7 +3,6 @@
 
 #include "main_window.h"
 
-#include "calculators/ham_band.h"
 #include "calculators/coil_calculator.h"
 #include "calculators/lc_resonance_calculator.h"
 #include "calculators/radio_horizon_calculator.h"
@@ -150,6 +149,15 @@ create_positive_spin_box(QWidget *parent, double maximum, int decimals, const QS
 	return box;
 }
 
+reference::BandReferenceFilter
+band_reference_filter_from_combo(const QComboBox *box)
+{
+	if (box == nullptr)
+		return reference::BandReferenceFilter::Amateur;
+
+	return static_cast<reference::BandReferenceFilter>(box->currentData().toInt());
+}
+
 }
 
 MainWindow::MainWindow(QWidget *parent)
@@ -180,6 +188,12 @@ MainWindow::calculate()
 	latest_result = result;
 	latest_yagi_result = calculators::YagiDesignResult();
 	result_text->setPlainText(result_to_text(result, current_length_unit));
+	if (result.ok) {
+		reference::BandReference band;
+		const QString band_name = band_box->itemData(band_box->currentIndex(), Qt::UserRole + 1).toString();
+		if (reference::band_reference_by_name(band_name, band) && band.service != reference::BandService::Amateur)
+			result_text->append(QStringLiteral("\nService warning: %1").arg(band.warning));
+	}
 	build_project_from_ui();
 	if (current_project.targets.isEmpty())
 		design_scene->show_antenna_diagram(result, current_length_unit);
@@ -370,6 +384,7 @@ MainWindow::create_antenna_tab(QTabWidget *tabs)
 	QFormLayout *input_layout = new QFormLayout(input_group);
 
 	band_box = new QComboBox(input_group);
+	band_filter_box = new QComboBox(input_group);
 	antenna_type_box = new QComboBox(input_group);
 	design_mode_box = new QComboBox(input_group);
 	length_unit_box = new QComboBox(input_group);
@@ -380,6 +395,9 @@ MainWindow::create_antenna_tab(QTabWidget *tabs)
 	project_notes_edit = new QTextEdit(input_group);
 	calculate_button = new QPushButton(QStringLiteral("Calculate"), input_group);
 
+	band_filter_box->addItem(QStringLiteral("Amateur"), static_cast<int>(reference::BandReferenceFilter::Amateur));
+	band_filter_box->addItem(QStringLiteral("Broadcast/Reference"), static_cast<int>(reference::BandReferenceFilter::BroadcastReference));
+	band_filter_box->addItem(QStringLiteral("All"), static_cast<int>(reference::BandReferenceFilter::All));
 	populate_band_selector();
 
 	antenna_type_box->addItem(QStringLiteral("Half-wave dipole"), static_cast<int>(calculators::AntennaType::HalfWaveDipole));
@@ -437,6 +455,7 @@ MainWindow::create_antenna_tab(QTabWidget *tabs)
 	configure_length_input();
 
 	input_layout->addRow(QStringLiteral("Project title"), project_title_box);
+	input_layout->addRow(QStringLiteral("Band filter"), band_filter_box);
 	input_layout->addRow(QStringLiteral("Band"), band_box);
 	input_layout->addRow(QStringLiteral("Antenna type"), antenna_type_box);
 	input_layout->addRow(QStringLiteral("Design mode"), design_mode_box);
@@ -491,6 +510,10 @@ MainWindow::create_antenna_tab(QTabWidget *tabs)
 
 	connect(calculate_button, &QPushButton::clicked, this, &MainWindow::calculate);
 	connect(add_target_button, &QPushButton::clicked, this, &MainWindow::add_current_target);
+	connect(band_filter_box, &QComboBox::currentIndexChanged, this, [this]() {
+		populate_band_selector();
+		set_frequency_from_band(band_box->currentIndex());
+	});
 	connect(band_box, &QComboBox::currentIndexChanged, this, &MainWindow::set_frequency_from_band);
 	connect(antenna_type_box, &QComboBox::currentIndexChanged, this, &MainWindow::save_antenna_type);
 	connect(design_mode_box, &QComboBox::currentIndexChanged, this, &MainWindow::calculate);
@@ -598,6 +621,7 @@ MainWindow::create_band_propagation_tab(QTabWidget *tabs)
 	QPushButton *update_button = new QPushButton(QStringLiteral("Update guidance"), tab);
 
 	propagation_band_box = new QComboBox(tab);
+	propagation_band_filter_box = new QComboBox(tab);
 	propagation_mode_box = new QComboBox(tab);
 	propagation_environment_box = new QComboBox(tab);
 	propagation_tx_height_box = create_positive_spin_box(tab, 10000000.0, 3, QString(), 10.0);
@@ -606,8 +630,10 @@ MainWindow::create_band_propagation_tab(QTabWidget *tabs)
 	reference_text = new QTextEdit(tab);
 	reach_text = new QTextEdit(tab);
 
-	for (const reference::BandReference &band : reference::band_references())
-		propagation_band_box->addItem(band.name, band.design_frequency_mhz);
+	propagation_band_filter_box->addItem(QStringLiteral("Amateur"), static_cast<int>(reference::BandReferenceFilter::Amateur));
+	propagation_band_filter_box->addItem(QStringLiteral("Broadcast/Reference"), static_cast<int>(reference::BandReferenceFilter::BroadcastReference));
+	propagation_band_filter_box->addItem(QStringLiteral("All"), static_cast<int>(reference::BandReferenceFilter::All));
+	populate_propagation_band_selector();
 	for (const reference::ModeReference &mode : reference::mode_references())
 		propagation_mode_box->addItem(mode.name, mode.key);
 
@@ -621,6 +647,7 @@ MainWindow::create_band_propagation_tab(QTabWidget *tabs)
 	reach_text->setReadOnly(true);
 	update_reference_height_inputs();
 
+	input_layout->addRow(QStringLiteral("Band filter"), propagation_band_filter_box);
 	input_layout->addRow(QStringLiteral("Band"), propagation_band_box);
 	input_layout->addRow(QStringLiteral("Mode"), propagation_mode_box);
 	input_layout->addRow(QStringLiteral("Environment"), propagation_environment_box);
@@ -637,6 +664,7 @@ MainWindow::create_band_propagation_tab(QTabWidget *tabs)
 	root_layout->addWidget(reach_text, 1);
 	tabs->addTab(tab, QStringLiteral("Band & Propagation"));
 
+	connect(propagation_band_filter_box, &QComboBox::currentIndexChanged, this, &MainWindow::populate_propagation_band_selector);
 	connect(propagation_band_box, &QComboBox::currentIndexChanged, this, &MainWindow::update_reference_panel);
 	connect(propagation_mode_box, &QComboBox::currentIndexChanged, this, &MainWindow::update_reference_panel);
 	connect(propagation_environment_box, &QComboBox::currentIndexChanged, this, &MainWindow::update_reference_panel);
@@ -651,29 +679,74 @@ MainWindow::create_band_propagation_tab(QTabWidget *tabs)
 void
 MainWindow::populate_band_selector()
 {
+	const QSignalBlocker blocker(band_box);
+	const double previous_frequency_mhz = band_box->currentData().toDouble();
+	int selected_index = -1;
+
+	band_box->clear();
 	band_box->addItem(QStringLiteral("Custom"), 0.0);
 
-	for (const calculators::HamBand &band : calculators::ham_bands()) {
-		const QString label = QStringLiteral("%1 (%2-%3 MHz)")
-			.arg(QString::fromStdString(band.display_name))
+	for (const reference::BandReference &band : reference::band_references(band_reference_filter_from_combo(band_filter_box))) {
+		const QString label = QStringLiteral("%1 (%2, %3-%4 MHz)")
+			.arg(band.name)
+			.arg(reference::band_service_label(band.service))
 			.arg(band.lower_frequency_mhz, 0, 'f', 3)
 			.arg(band.upper_frequency_mhz, 0, 'f', 3);
 		band_box->addItem(label, band.design_frequency_mhz);
+		band_box->setItemData(band_box->count() - 1, band.name, Qt::UserRole + 1);
+		band_box->setItemData(band_box->count() - 1, reference::band_service_key(band.service), Qt::UserRole + 2);
+		if (qFuzzyCompare(previous_frequency_mhz + 1.0, band.design_frequency_mhz + 1.0))
+			selected_index = band_box->count() - 1;
 	}
 
-	band_box->setCurrentIndex(4);
+	band_box->setCurrentIndex(selected_index >= 0 ? selected_index : qMin(4, band_box->count() - 1));
+}
+
+void
+MainWindow::populate_propagation_band_selector()
+{
+	if (propagation_band_box == nullptr)
+		return;
+
+	const QSignalBlocker blocker(propagation_band_box);
+	const double previous_frequency_mhz = propagation_band_box->currentData().toDouble();
+	int selected_index = -1;
+
+	propagation_band_box->clear();
+	for (const reference::BandReference &band : reference::band_references(band_reference_filter_from_combo(propagation_band_filter_box))) {
+		propagation_band_box->addItem(band.name, band.design_frequency_mhz);
+		propagation_band_box->setItemData(propagation_band_box->count() - 1, reference::band_service_key(band.service), Qt::UserRole + 1);
+		if (qFuzzyCompare(previous_frequency_mhz + 1.0, band.design_frequency_mhz + 1.0))
+			selected_index = propagation_band_box->count() - 1;
+	}
+
+	if (propagation_band_box->count() > 0)
+		propagation_band_box->setCurrentIndex(selected_index >= 0 ? selected_index : 0);
+	update_reference_panel();
 }
 
 void
 MainWindow::set_frequency_from_band(int index)
 {
 	const double frequency_mhz = band_box->itemData(index).toDouble();
+	const QString band_name = band_box->itemData(index, Qt::UserRole + 1).toString();
 
 	if (frequency_mhz > 0.0)
 		frequency_box->setValue(frequency_mhz);
 	if (frequency_mhz > 0.0 && propagation_band_box != nullptr) {
 		reference::BandReference reference;
-		if (reference::band_reference_by_frequency(frequency_mhz, reference)) {
+		if (reference::band_reference_by_name(band_name, reference) || reference::band_reference_by_frequency(frequency_mhz, reference)) {
+			if (propagation_band_filter_box != nullptr) {
+				const reference::BandReferenceFilter filter = reference.service == reference::BandService::Amateur
+					? reference::BandReferenceFilter::Amateur
+					: reference::BandReferenceFilter::BroadcastReference;
+				const int filter_index = propagation_band_filter_box->findData(static_cast<int>(filter));
+				if (filter_index >= 0 && propagation_band_filter_box->currentIndex() != filter_index) {
+					const QSignalBlocker blocker(propagation_band_filter_box);
+					propagation_band_filter_box->setCurrentIndex(filter_index);
+					populate_propagation_band_selector();
+				}
+			}
 			const int reference_index = propagation_band_box->findText(reference.name);
 			if (reference_index >= 0)
 				propagation_band_box->setCurrentIndex(reference_index);
@@ -691,7 +764,10 @@ MainWindow::add_current_target()
 {
 	project::AntennaTarget target;
 
-	target.band_name = band_box->currentText();
+	target.band_name = band_box->itemData(band_box->currentIndex(), Qt::UserRole + 1).toString();
+	if (target.band_name.isEmpty())
+		target.band_name = band_box->currentText();
+	target.band_service = reference::band_service_from_key(band_box->itemData(band_box->currentIndex(), Qt::UserRole + 2).toString());
 	target.enabled = true;
 	target.frequency_mhz = frequency_box->value();
 	current_project.targets.append(target);
@@ -995,8 +1071,9 @@ MainWindow::export_pdf()
 		return;
 
 	build_project_from_ui();
+	const QString selected_band_name = band_box->itemData(band_box->currentIndex(), Qt::UserRole + 1).toString();
 	const guides::GuideDocument document = current_project.elements.isEmpty()
-		? guides::create_guide_document(latest_result, current_length_unit, band_box->currentText())
+		? guides::create_guide_document(latest_result, current_length_unit, selected_band_name.isEmpty() ? band_box->currentText() : selected_band_name)
 		: guides::create_project_guide_document(current_project, current_length_unit);
 	const guides::GuideRenderer renderer;
 
@@ -1062,6 +1139,12 @@ MainWindow::calculate_yagi()
 	latest_result = calculators::AntennaCalculationResult();
 	latest_yagi_result = result;
 	result_text->setPlainText(yagi_result_to_text(result, current_length_unit));
+	if (result.ok) {
+		reference::BandReference band;
+		const QString band_name = band_box->itemData(band_box->currentIndex(), Qt::UserRole + 1).toString();
+		if (reference::band_reference_by_name(band_name, band) && band.service != reference::BandService::Amateur)
+			result_text->append(QStringLiteral("\nService warning: %1\nHF Yagis on these bands are physically large and construction-sensitive starting designs only.").arg(band.warning));
+	}
 	build_project_from_ui();
 	current_project.elements.clear();
 	current_project.diagram_items.clear();
@@ -1266,8 +1349,9 @@ MainWindow::print_guide()
 	}
 
 	build_project_from_ui();
+	const QString selected_band_name = band_box->itemData(band_box->currentIndex(), Qt::UserRole + 1).toString();
 	const guides::GuideDocument document = current_project.elements.isEmpty()
-		? guides::create_guide_document(latest_result, current_length_unit, band_box->currentText())
+		? guides::create_guide_document(latest_result, current_length_unit, selected_band_name.isEmpty() ? band_box->currentText() : selected_band_name)
 		: guides::create_project_guide_document(current_project, current_length_unit);
 	QPrinter printer(QPrinter::HighResolution);
 	QPrintDialog dialog(&printer, this);
@@ -1412,14 +1496,16 @@ MainWindow::update_reference_panel()
 
 	QString reference_output;
 	if (reference::band_reference_by_name(band_name, band)) {
-		reference_output += QStringLiteral("Band: %1\nFrequency: %2-%3 MHz\nDesign frequency: %4 MHz\nCategory: %5\nWavelength label: %6\n\n")
+		reference_output += QStringLiteral("Band: %1\nService: %2\nFrequency: %3-%4 MHz\nDesign frequency: %5 MHz\nCategory: %6\nWavelength label: %7\n\n")
 			.arg(band.name)
+			.arg(reference::band_service_label(band.service))
 			.arg(band.lower_frequency_mhz, 0, 'f', 3)
 			.arg(band.upper_frequency_mhz, 0, 'f', 3)
 			.arg(band.design_frequency_mhz, 0, 'f', 3)
 			.arg(band.category)
 			.arg(band.wavelength_label);
-		reference_output += QStringLiteral("Antenna notes: %1\n\nPropagation notes: %2\n\nUse-case notes: %3\n\nWarning: %4\n")
+		reference_output += QStringLiteral("Mode notes: %1\n\nAntenna notes: %2\n\nPropagation notes: %3\n\nUse-case notes: %4\n\nWarning: %5\n")
+			.arg(band.mode_notes)
 			.arg(band.antenna_notes)
 			.arg(band.propagation_notes)
 			.arg(band.use_case_notes)

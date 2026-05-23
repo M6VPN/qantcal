@@ -19,6 +19,25 @@ test_all_bands_have_notes()
 }
 
 void
+test_band_filters()
+{
+	const QVector<qantcal::reference::BandReference> amateur =
+		qantcal::reference::band_references(qantcal::reference::BandReferenceFilter::Amateur);
+	const QVector<qantcal::reference::BandReference> broadcast_reference =
+		qantcal::reference::band_references(qantcal::reference::BandReferenceFilter::BroadcastReference);
+	const QVector<qantcal::reference::BandReference> all =
+		qantcal::reference::band_references(qantcal::reference::BandReferenceFilter::All);
+
+	assert(!amateur.isEmpty());
+	assert(!broadcast_reference.isEmpty());
+	assert(all.size() == amateur.size() + broadcast_reference.size());
+	for (const qantcal::reference::BandReference &band : amateur)
+		assert(band.service == qantcal::reference::BandService::Amateur);
+	for (const qantcal::reference::BandReference &band : broadcast_reference)
+		assert(band.service != qantcal::reference::BandService::Amateur);
+}
+
+void
 test_lookup_by_frequency()
 {
 	qantcal::reference::BandReference band;
@@ -50,6 +69,7 @@ int
 main()
 {
 	test_all_bands_have_notes();
+	test_band_filters();
 	test_lookup_by_frequency();
 	test_lookup_by_name();
 	test_unknown_frequency_fails_cleanly();

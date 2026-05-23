@@ -63,6 +63,31 @@ append_standard_sections(GuideDocument &document)
 }
 
 void
+append_band_reference_section(GuideDocument &document, const reference::BandReference &band)
+{
+	document.sections.append(make_text_section(
+		QStringLiteral("Band reference"),
+		QStringLiteral("Band: %1\nService: %2\nFrequency range: %3-%4 MHz\nDesign frequency: %5 MHz\nMode notes: %6\nPropagation notes: %7\nWarning: %8")
+			.arg(band.name)
+			.arg(reference::band_service_label(band.service))
+			.arg(band.lower_frequency_mhz, 0, 'f', 3)
+			.arg(band.upper_frequency_mhz, 0, 'f', 3)
+			.arg(band.design_frequency_mhz, 0, 'f', 3)
+			.arg(band.mode_notes)
+			.arg(band.propagation_notes)
+			.arg(band.warning),
+		band.service != reference::BandService::Amateur
+	));
+	if (band.service != reference::BandService::Amateur) {
+		document.sections.append(make_text_section(
+			QStringLiteral("Broadcast/reference warning"),
+			QStringLiteral("These dimensions are suitable as starting points for receive antennas or legally authorised transmission only.\nqantcal does not grant authority to transmit."),
+			true
+		));
+	}
+}
+
+void
 append_propagation_sections(GuideDocument &document, const project::AntennaProject &project, calculators::LengthUnit length_unit)
 {
 	if (!project.propagation_settings.enabled || !project.propagation_settings.include_in_guides)
@@ -173,6 +198,11 @@ create_guide_document(
 		QStringLiteral("Target bands and design frequencies"),
 		QStringLiteral("%1 - %2").arg(document.band_text).arg(document.frequency_text)
 	));
+	{
+		reference::BandReference band;
+		if (reference::band_reference_by_name(band_text, band))
+			append_band_reference_section(document, band);
+	}
 	document.sections.append(dimensions_section(dimensions));
 	document.sections.append(make_text_section(QStringLiteral("Diagram"), QStringLiteral("Diagram snapshot is rendered from the current design canvas.")));
 	append_standard_sections(document);
@@ -246,11 +276,20 @@ create_project_guide_document(
 		GuideTableRow row;
 		row.cells = QStringList{
 			target.band_name,
+			reference::band_service_label(target.band_service),
 			QStringLiteral("%1 MHz").arg(target.frequency_mhz, 0, 'f', 3)
 		};
 		targets_section.table_rows.append(row);
+		reference::BandReference band;
+		if (reference::band_reference_by_name(target.band_name, band) && band.service != reference::BandService::Amateur)
+			notes << band.warning;
 	}
 	document.sections.append(targets_section);
+	for (const project::AntennaTarget &target : project.targets) {
+		reference::BandReference band;
+		if (target.enabled && reference::band_reference_by_name(target.band_name, band))
+			append_band_reference_section(document, band);
+	}
 	document.sections.append(dimensions_section(dimensions));
 	if (project.antenna_type == calculators::AntennaType::Yagi) {
 		document.sections.append(make_text_section(

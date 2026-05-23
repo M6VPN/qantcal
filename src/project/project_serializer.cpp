@@ -97,6 +97,7 @@ target_to_json(const AntennaTarget &target)
 	QJsonObject object;
 
 	object.insert(QStringLiteral("band_name"), target.band_name);
+	object.insert(QStringLiteral("band_service"), reference::band_service_key(target.band_service));
 	object.insert(QStringLiteral("enabled"), target.enabled);
 	object.insert(QStringLiteral("frequency_mhz"), target.frequency_mhz);
 
@@ -176,8 +177,14 @@ read_targets(const QJsonArray &array, QVector<AntennaTarget> &targets, QString &
 		AntennaTarget target;
 
 		target.band_name = object.value(QStringLiteral("band_name")).toString();
+		target.band_service = reference::band_service_from_key(object.value(QStringLiteral("band_service")).toString());
 		target.enabled = object.value(QStringLiteral("enabled")).toBool(true);
 		target.frequency_mhz = object.value(QStringLiteral("frequency_mhz")).toDouble();
+		if (target.band_service == reference::BandService::Unknown) {
+			reference::BandReference reference;
+			if (reference::band_reference_by_name(target.band_name, reference))
+				target.band_service = reference.service;
+		}
 
 		if (target.frequency_mhz < 0.0) {
 			error_message = QStringLiteral("Target frequency cannot be negative.");

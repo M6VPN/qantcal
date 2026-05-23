@@ -49,6 +49,18 @@ sample_project(int target_count)
 	return project;
 }
 
+qantcal::project::AntennaProject
+sample_broadcast_project()
+{
+	qantcal::project::AntennaProject project = sample_project(1);
+
+	project.targets[0].band_name = QStringLiteral("49m Broadcast");
+	project.targets[0].band_service = qantcal::reference::BandService::Broadcast;
+	project.targets[0].frequency_mhz = 6.050;
+
+	return project;
+}
+
 bool
 near(double actual, double expected)
 {
@@ -99,6 +111,20 @@ test_default_round_trip()
 	assert(qantcal::project::from_json(qantcal::project::to_json(project), parsed, error));
 	assert(parsed.schema_version == qantcal::project::CURRENT_SCHEMA_VERSION);
 	assert(parsed.title == "Untitled Project");
+}
+
+void
+test_broadcast_service_round_trip()
+{
+	const qantcal::project::AntennaProject project = sample_broadcast_project();
+	qantcal::project::AntennaProject parsed;
+	QString error;
+
+	assert(qantcal::project::from_json(qantcal::project::to_json(project), parsed, error));
+	assert(parsed.targets.size() == 1);
+	assert(parsed.targets[0].band_name == QStringLiteral("49m Broadcast"));
+	assert(parsed.targets[0].band_service == qantcal::reference::BandService::Broadcast);
+	assert(near(parsed.targets[0].frequency_mhz, 6.050));
 }
 
 void
@@ -235,6 +261,23 @@ test_unknown_field_ignored()
 }
 
 void
+test_older_project_without_band_service_loads()
+{
+	QJsonObject object = qantcal::project::to_json(sample_broadcast_project());
+	QJsonArray targets = object.value(QStringLiteral("targets")).toArray();
+	QJsonObject target = targets[0].toObject();
+	qantcal::project::AntennaProject parsed;
+	QString error;
+
+	target.remove(QStringLiteral("band_service"));
+	targets.replace(0, target);
+	object.insert(QStringLiteral("targets"), targets);
+
+	assert(qantcal::project::from_json(object, parsed, error));
+	assert(parsed.targets[0].band_service == qantcal::reference::BandService::Broadcast);
+}
+
+void
 test_older_project_without_yagi_design_loads()
 {
 	QJsonObject object = qantcal::project::to_json(sample_project(1));
@@ -305,6 +348,7 @@ test_yagi_design_missing_optional_fields_defaults()
 int
 main()
 {
+	test_broadcast_service_round_trip();
 	test_default_round_trip();
 	test_length_unit_round_trip();
 	test_missing_diagram_fields_defaults();
@@ -312,6 +356,7 @@ main()
 	test_negative_frequency_rejected();
 	test_negative_length_rejected();
 	test_one_target_round_trip();
+	test_older_project_without_band_service_loads();
 	test_older_project_without_yagi_design_loads();
 	test_propagation_settings_round_trip();
 	test_round_trip_preserves_diagram_fields();

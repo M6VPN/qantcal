@@ -13,6 +13,10 @@ add_executable(test_band_reference
 	test_band_reference.cpp
 )
 
+add_executable(test_broadcast_band_reference
+	test_broadcast_band_reference.cpp
+)
+
 add_executable(test_coil_calculator
 	test_coil_calculator.cpp
 )
@@ -80,6 +84,11 @@ target_link_libraries(test_antenna_measurement
 )
 
 target_link_libraries(test_band_reference
+	PRIVATE
+		qantcal_core
+)
+
+target_link_libraries(test_broadcast_band_reference
 	PRIVATE
 		qantcal_core
 )
@@ -170,6 +179,11 @@ add_test(
 )
 
 add_test(
+	NAME test_broadcast_band_reference
+	COMMAND test_broadcast_band_reference
+)
+
+add_test(
 	NAME test_coil_calculator
 	COMMAND test_coil_calculator
 )
@@ -243,6 +257,7 @@ set_tests_properties(
 	test_antenna_calculator
 	test_antenna_measurement
 	test_band_reference
+	test_broadcast_band_reference
 	test_coil_calculator
 	test_ham_band
 	test_guide_document

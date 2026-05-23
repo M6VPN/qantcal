@@ -8,6 +8,32 @@
 namespace {
 
 qantcal::project::AntennaProject
+sample_broadcast_project()
+{
+	qantcal::project::AntennaProject project = qantcal::project::default_project();
+
+	project.antenna_type = qantcal::calculators::AntennaType::HalfWaveDipole;
+	project.title = QStringLiteral("49m receive dipole");
+	project.velocity_factor = 0.95;
+
+	qantcal::project::AntennaTarget target;
+	target.band_name = QStringLiteral("49m Broadcast");
+	target.band_service = qantcal::reference::BandService::Broadcast;
+	target.enabled = true;
+	target.frequency_mhz = 6.050;
+	project.targets.append(target);
+
+	qantcal::project::AntennaElement element;
+	element.frequency_mhz = 6.050;
+	element.label = target.band_name;
+	element.length_metres = 23.537;
+	element.role = QStringLiteral("calculated_element");
+	project.elements.append(element);
+
+	return project;
+}
+
+qantcal::project::AntennaProject
 sample_project()
 {
 	qantcal::project::AntennaProject project = qantcal::project::default_project();
@@ -149,7 +175,8 @@ test_target_band_frequency_data()
 		if (section.title == QStringLiteral("Target bands and design frequencies")) {
 			found_targets = true;
 			assert(section.table_rows[0].cells[0] == QStringLiteral("40m"));
-			assert(section.table_rows[0].cells[1].contains(QStringLiteral("7.100")));
+			assert(section.table_rows[0].cells[1] == QStringLiteral("Unknown"));
+			assert(section.table_rows[0].cells[2].contains(QStringLiteral("7.100")));
 		}
 	}
 
@@ -167,6 +194,22 @@ test_propagation_warning_included()
 		found_warning = found_warning
 			|| section.body_text.contains(QStringLiteral("not a propagation prediction"))
 			|| section.body_text.contains(QStringLiteral("Convenience design reference only"));
+	}
+
+	assert(found_warning);
+}
+
+void
+test_broadcast_warning_included()
+{
+	const qantcal::guides::GuideDocument document =
+		qantcal::guides::create_project_guide_document(sample_broadcast_project(), qantcal::calculators::LengthUnit::Metres);
+	bool found_warning = false;
+
+	for (const qantcal::guides::GuideSection &section : document.sections) {
+		found_warning = found_warning
+			|| section.body_text.contains(QStringLiteral("qantcal does not grant authority to transmit"))
+			|| section.body_text.contains(QStringLiteral("legally authorised transmission only"));
 	}
 
 	assert(found_warning);
@@ -222,6 +265,7 @@ int
 main()
 {
 	test_assumptions_and_safety_notes();
+	test_broadcast_warning_included();
 	test_document_from_project();
 	test_multi_band_rows();
 	test_propagation_warning_included();

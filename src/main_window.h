@@ -60,6 +60,7 @@ private:
 	void new_project();
 	void open_project();
 	void populate_band_selector();
+	void populate_propagation_band_selector();
 	void recalculate_targets();
 	void remove_selected_target();
 	void restore_settings();
@@ -84,9 +85,11 @@ private:
 
 	QComboBox *antenna_type_box = nullptr;
 	QComboBox *band_box = nullptr;
+	QComboBox *band_filter_box = nullptr;
 	QComboBox *design_mode_box = nullptr;
 	QComboBox *length_unit_box = nullptr;
 	QComboBox *propagation_band_box = nullptr;
+	QComboBox *propagation_band_filter_box = nullptr;
 	QComboBox *propagation_environment_box = nullptr;
 	QComboBox *propagation_mode_box = nullptr;
 	QComboBox *yagi_preset_box = nullptr;
