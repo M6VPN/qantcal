@@ -14,6 +14,10 @@
 #include "guides/guide_document.h"
 #include "guides/guide_renderer.h"
 #include "project/project_file_io.h"
+#include "reference/band_reference.h"
+#include "reference/mode_reference.h"
+#include "reference/propagation_notes.h"
+#include "reference/reach_estimator.h"
 
 #include <QAction>
 #include <QCheckBox>
@@ -197,6 +201,12 @@ MainWindow::change_length_unit(int index)
 	const double length_m = calculators::length_unit_to_metres(length_box->value(), current_length_unit);
 	const double yagi_diameter_m = calculators::length_unit_to_metres(yagi_element_diameter_box->value(), current_length_unit);
 	const double yagi_boom_correction_m = calculators::length_unit_to_metres(yagi_boom_correction_box->value(), current_length_unit);
+	const double propagation_tx_height_m = propagation_tx_height_box != nullptr
+		? calculators::length_unit_to_metres(propagation_tx_height_box->value(), current_length_unit)
+		: 0.0;
+	const double propagation_rx_height_m = propagation_rx_height_box != nullptr
+		? calculators::length_unit_to_metres(propagation_rx_height_box->value(), current_length_unit)
+		: 0.0;
 
 	current_length_unit = new_unit;
 	configure_length_input();
@@ -213,11 +223,23 @@ MainWindow::change_length_unit(int index)
 		const QSignalBlocker blocker(yagi_boom_correction_box);
 		yagi_boom_correction_box->setValue(calculators::metres_to_length_unit(yagi_boom_correction_m, current_length_unit));
 	}
+	if (propagation_tx_height_box != nullptr && propagation_rx_height_box != nullptr) {
+		update_reference_height_inputs();
+		{
+			const QSignalBlocker blocker(propagation_tx_height_box);
+			propagation_tx_height_box->setValue(calculators::metres_to_length_unit(propagation_tx_height_m, current_length_unit));
+		}
+		{
+			const QSignalBlocker blocker(propagation_rx_height_box);
+			propagation_rx_height_box->setValue(calculators::metres_to_length_unit(propagation_rx_height_m, current_length_unit));
+		}
+	}
 
 	app_settings.set_length_unit(current_length_unit);
 	current_project.preferred_length_unit = current_length_unit;
 	mark_project_dirty();
 	calculate();
+	update_reference_panel();
 	statusBar()->showMessage(
 		QStringLiteral("Length unit set to %1")
 			.arg(QString::fromStdString(calculators::length_unit_label(current_length_unit)))
@@ -264,6 +286,7 @@ MainWindow::configure_length_input()
 	yagi_boom_correction_box->setDecimals(length_box->decimals());
 	yagi_element_diameter_box->setSingleStep(length_box->singleStep());
 	yagi_boom_correction_box->setSingleStep(length_box->singleStep());
+	update_reference_height_inputs();
 }
 
 void
@@ -331,6 +354,7 @@ MainWindow::create_central_widget()
 
 	create_antenna_tab(tabs);
 	create_rf_calculators_tab(tabs);
+	create_band_propagation_tab(tabs);
 
 	root_layout->addWidget(tabs);
 	setCentralWidget(central);
@@ -565,6 +589,66 @@ MainWindow::create_rf_calculators_tab(QTabWidget *tabs)
 }
 
 void
+MainWindow::create_band_propagation_tab(QTabWidget *tabs)
+{
+	QWidget *tab = new QWidget(tabs);
+	QVBoxLayout *root_layout = new QVBoxLayout(tab);
+	QHBoxLayout *top_layout = new QHBoxLayout();
+	QFormLayout *input_layout = new QFormLayout();
+	QPushButton *update_button = new QPushButton(QStringLiteral("Update guidance"), tab);
+
+	propagation_band_box = new QComboBox(tab);
+	propagation_mode_box = new QComboBox(tab);
+	propagation_environment_box = new QComboBox(tab);
+	propagation_tx_height_box = create_positive_spin_box(tab, 10000000.0, 3, QString(), 10.0);
+	propagation_rx_height_box = create_positive_spin_box(tab, 10000000.0, 3, QString(), 10.0);
+	propagation_power_box = create_positive_spin_box(tab, 1000000.0, 3, QStringLiteral(" W"), 0.0);
+	reference_text = new QTextEdit(tab);
+	reach_text = new QTextEdit(tab);
+
+	for (const reference::BandReference &band : reference::band_references())
+		propagation_band_box->addItem(band.name, band.design_frequency_mhz);
+	for (const reference::ModeReference &mode : reference::mode_references())
+		propagation_mode_box->addItem(mode.name, mode.key);
+
+	propagation_environment_box->addItem(reference::environment_profile_label(reference::EnvironmentProfile::Indoor), reference::environment_profile_key(reference::EnvironmentProfile::Indoor));
+	propagation_environment_box->addItem(reference::environment_profile_label(reference::EnvironmentProfile::Urban), reference::environment_profile_key(reference::EnvironmentProfile::Urban));
+	propagation_environment_box->addItem(reference::environment_profile_label(reference::EnvironmentProfile::Suburban), reference::environment_profile_key(reference::EnvironmentProfile::Suburban));
+	propagation_environment_box->addItem(reference::environment_profile_label(reference::EnvironmentProfile::Rural), reference::environment_profile_key(reference::EnvironmentProfile::Rural));
+	propagation_environment_box->addItem(reference::environment_profile_label(reference::EnvironmentProfile::HilltopOpen), reference::environment_profile_key(reference::EnvironmentProfile::HilltopOpen));
+
+	reference_text->setReadOnly(true);
+	reach_text->setReadOnly(true);
+	update_reference_height_inputs();
+
+	input_layout->addRow(QStringLiteral("Band"), propagation_band_box);
+	input_layout->addRow(QStringLiteral("Mode"), propagation_mode_box);
+	input_layout->addRow(QStringLiteral("Environment"), propagation_environment_box);
+	input_layout->addRow(QStringLiteral("TX antenna height"), propagation_tx_height_box);
+	input_layout->addRow(QStringLiteral("RX antenna height"), propagation_rx_height_box);
+	input_layout->addRow(QStringLiteral("Power"), propagation_power_box);
+	input_layout->addRow(update_button);
+
+	top_layout->addLayout(input_layout, 0);
+	top_layout->addWidget(reference_text, 1);
+
+	root_layout->addLayout(top_layout, 1);
+	root_layout->addWidget(new QLabel(QStringLiteral("Reach guidance"), tab));
+	root_layout->addWidget(reach_text, 1);
+	tabs->addTab(tab, QStringLiteral("Band & Propagation"));
+
+	connect(propagation_band_box, &QComboBox::currentIndexChanged, this, &MainWindow::update_reference_panel);
+	connect(propagation_mode_box, &QComboBox::currentIndexChanged, this, &MainWindow::update_reference_panel);
+	connect(propagation_environment_box, &QComboBox::currentIndexChanged, this, &MainWindow::update_reference_panel);
+	connect(propagation_power_box, &QDoubleSpinBox::valueChanged, this, &MainWindow::update_reference_panel);
+	connect(propagation_rx_height_box, &QDoubleSpinBox::valueChanged, this, &MainWindow::update_reference_panel);
+	connect(propagation_tx_height_box, &QDoubleSpinBox::valueChanged, this, &MainWindow::update_reference_panel);
+	connect(update_button, &QPushButton::clicked, this, &MainWindow::update_reference_panel);
+
+	update_reference_panel();
+}
+
+void
 MainWindow::populate_band_selector()
 {
 	band_box->addItem(QStringLiteral("Custom"), 0.0);
@@ -587,10 +671,19 @@ MainWindow::set_frequency_from_band(int index)
 
 	if (frequency_mhz > 0.0)
 		frequency_box->setValue(frequency_mhz);
+	if (frequency_mhz > 0.0 && propagation_band_box != nullptr) {
+		reference::BandReference reference;
+		if (reference::band_reference_by_frequency(frequency_mhz, reference)) {
+			const int reference_index = propagation_band_box->findText(reference.name);
+			if (reference_index >= 0)
+				propagation_band_box->setCurrentIndex(reference_index);
+		}
+	}
 
 	app_settings.set_band_index(index);
 	mark_project_dirty();
 	calculate();
+	update_reference_panel();
 }
 
 void
@@ -655,6 +748,30 @@ MainWindow::apply_project_to_ui()
 			yagi_boom_correction_box->setValue(calculators::metres_to_length_unit(current_project.yagi_design.boom_correction_metres, current_project.preferred_length_unit));
 		}
 	}
+	if (current_project.propagation_settings.enabled && propagation_mode_box != nullptr) {
+		const int mode_index = propagation_mode_box->findData(reference::mode_type_key(current_project.propagation_settings.mode));
+		const int environment_index = propagation_environment_box->findData(reference::environment_profile_key(current_project.propagation_settings.environment));
+		if (mode_index >= 0) {
+			const QSignalBlocker blocker(propagation_mode_box);
+			propagation_mode_box->setCurrentIndex(mode_index);
+		}
+		if (environment_index >= 0) {
+			const QSignalBlocker blocker(propagation_environment_box);
+			propagation_environment_box->setCurrentIndex(environment_index);
+		}
+		{
+			const QSignalBlocker blocker(propagation_tx_height_box);
+			propagation_tx_height_box->setValue(calculators::metres_to_length_unit(current_project.propagation_settings.tx_height_metres, current_project.preferred_length_unit));
+		}
+		{
+			const QSignalBlocker blocker(propagation_rx_height_box);
+			propagation_rx_height_box->setValue(calculators::metres_to_length_unit(current_project.propagation_settings.rx_height_metres, current_project.preferred_length_unit));
+		}
+		{
+			const QSignalBlocker blocker(propagation_power_box);
+			propagation_power_box->setValue(current_project.propagation_settings.has_power_watts ? current_project.propagation_settings.power_watts : 0.0);
+		}
+	}
 	current_length_unit = current_project.preferred_length_unit;
 	configure_length_input();
 	update_yagi_controls();
@@ -666,6 +783,7 @@ MainWindow::apply_project_to_ui()
 		}
 	}
 	update_target_list();
+	update_reference_panel();
 	update_project_title();
 	calculate();
 }
@@ -686,6 +804,16 @@ MainWindow::build_project_from_ui()
 	current_project.yagi_design.element_shortening_factor = velocity_factor_box->value();
 	current_project.yagi_design.element_diameter_metres = calculators::length_unit_to_metres(yagi_element_diameter_box->value(), current_length_unit);
 	current_project.yagi_design.boom_correction_metres = calculators::length_unit_to_metres(yagi_boom_correction_box->value(), current_length_unit);
+	if (propagation_mode_box != nullptr) {
+		current_project.propagation_settings.enabled = true;
+		current_project.propagation_settings.mode = reference::mode_type_from_key(propagation_mode_box->currentData().toString());
+		current_project.propagation_settings.environment = reference::environment_profile_from_key(propagation_environment_box->currentData().toString());
+		current_project.propagation_settings.tx_height_metres = calculators::length_unit_to_metres(propagation_tx_height_box->value(), current_length_unit);
+		current_project.propagation_settings.rx_height_metres = calculators::length_unit_to_metres(propagation_rx_height_box->value(), current_length_unit);
+		current_project.propagation_settings.power_watts = propagation_power_box->value();
+		current_project.propagation_settings.has_power_watts = propagation_power_box->value() > 0.0;
+		current_project.propagation_settings.include_in_guides = true;
+	}
 }
 
 bool
@@ -1254,6 +1382,95 @@ MainWindow::update_project_title()
 		title += QStringLiteral(" *");
 
 	setWindowTitle(QStringLiteral("qantcal - %1").arg(title));
+}
+
+void
+MainWindow::update_reference_height_inputs()
+{
+	if (propagation_tx_height_box == nullptr || propagation_rx_height_box == nullptr)
+		return;
+
+	propagation_tx_height_box->setSuffix(length_box != nullptr ? length_box->suffix() : QStringLiteral(" m"));
+	propagation_rx_height_box->setSuffix(length_box != nullptr ? length_box->suffix() : QStringLiteral(" m"));
+	propagation_tx_height_box->setDecimals(length_box != nullptr ? length_box->decimals() : 3);
+	propagation_rx_height_box->setDecimals(length_box != nullptr ? length_box->decimals() : 3);
+	propagation_tx_height_box->setSingleStep(length_box != nullptr ? length_box->singleStep() : 0.1);
+	propagation_rx_height_box->setSingleStep(length_box != nullptr ? length_box->singleStep() : 0.1);
+}
+
+void
+MainWindow::update_reference_panel()
+{
+	if (propagation_band_box == nullptr || reference_text == nullptr || reach_text == nullptr)
+		return;
+
+	reference::BandReference band;
+	reference::PropagationProfile profile;
+	reference::ModeReference mode;
+	const QString band_name = propagation_band_box->currentText();
+	const double frequency_mhz = propagation_band_box->currentData().toDouble();
+
+	QString reference_output;
+	if (reference::band_reference_by_name(band_name, band)) {
+		reference_output += QStringLiteral("Band: %1\nFrequency: %2-%3 MHz\nDesign frequency: %4 MHz\nCategory: %5\nWavelength label: %6\n\n")
+			.arg(band.name)
+			.arg(band.lower_frequency_mhz, 0, 'f', 3)
+			.arg(band.upper_frequency_mhz, 0, 'f', 3)
+			.arg(band.design_frequency_mhz, 0, 'f', 3)
+			.arg(band.category)
+			.arg(band.wavelength_label);
+		reference_output += QStringLiteral("Antenna notes: %1\n\nPropagation notes: %2\n\nUse-case notes: %3\n\nWarning: %4\n")
+			.arg(band.antenna_notes)
+			.arg(band.propagation_notes)
+			.arg(band.use_case_notes)
+			.arg(band.warning);
+	}
+	if (reference::propagation_profile_by_band_name(band_name, profile)) {
+		reference_output += QStringLiteral("\nPropagation categories: %1\nDay/night tendency: %2\nCharacter: %3\nNoise/interference: %4\nAntenna practicality: %5\nVariability: %6\n")
+			.arg(profile.categories.join(QStringLiteral(", ")))
+			.arg(profile.day_night_tendency)
+			.arg(profile.character)
+			.arg(profile.noise_tendency)
+			.arg(profile.antenna_practicality)
+			.arg(profile.variability);
+	}
+	if (reference::mode_reference_by_key(propagation_mode_box->currentData().toString(), mode)) {
+		reference_output += QStringLiteral("\nMode: %1\nBandwidth category: %2\nUse notes: %3\nWeak-signal suitability: %4\nBeginner notes: %5\nCaution: %6\n")
+			.arg(mode.name)
+			.arg(mode.bandwidth_category)
+			.arg(mode.use_notes)
+			.arg(mode.weak_signal_notes)
+			.arg(mode.beginner_notes)
+			.arg(mode.caution);
+	}
+	reference_text->setPlainText(reference_output);
+
+	reference::ReachEstimateInput input;
+	input.frequency_mhz = frequency_mhz;
+	input.band_name = band_name;
+	input.mode = reference::mode_type_from_key(propagation_mode_box->currentData().toString());
+	input.environment = reference::environment_profile_from_key(propagation_environment_box->currentData().toString());
+	input.tx_height_metres = calculators::length_unit_to_metres(propagation_tx_height_box->value(), current_length_unit);
+	input.rx_height_metres = calculators::length_unit_to_metres(propagation_rx_height_box->value(), current_length_unit);
+	input.power_watts = propagation_power_box->value();
+	input.has_power_watts = propagation_power_box->value() > 0.0;
+	const reference::ReachEstimateResult result = reference::estimate_reach(input);
+
+	if (!result.ok) {
+		reach_text->setPlainText(QStringLiteral("Input error: %1").arg(result.error_message));
+		return;
+	}
+
+	QString reach_output = result.summary;
+	reach_output += QStringLiteral("\nCategories: %1\n").arg(result.categories.join(QStringLiteral(", ")));
+	if (result.includes_radio_horizon) {
+		reach_output += QStringLiteral("TX horizon: %1 km\nRX horizon: %2 km\nCombined radio horizon: %3 km\n")
+			.arg(result.tx_horizon_km, 0, 'f', 1)
+			.arg(result.rx_horizon_km, 0, 'f', 1)
+			.arg(result.combined_horizon_km, 0, 'f', 1);
+	}
+	reach_output += QStringLiteral("\nWarnings:\n%1").arg(result.warnings.join(QStringLiteral("\n")));
+	reach_text->setPlainText(reach_output);
 }
 
 void

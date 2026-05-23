@@ -76,6 +76,22 @@ element_to_json(const AntennaElement &element)
 }
 
 QJsonObject
+propagation_settings_to_json(const PropagationProjectSettings &settings)
+{
+	QJsonObject object;
+
+	object.insert(QStringLiteral("environment"), reference::environment_profile_key(settings.environment));
+	object.insert(QStringLiteral("hasPowerWatts"), settings.has_power_watts);
+	object.insert(QStringLiteral("includeInGuides"), settings.include_in_guides);
+	object.insert(QStringLiteral("mode"), reference::mode_type_key(settings.mode));
+	object.insert(QStringLiteral("powerWatts"), settings.power_watts);
+	object.insert(QStringLiteral("rxHeightMetres"), settings.rx_height_metres);
+	object.insert(QStringLiteral("txHeightMetres"), settings.tx_height_metres);
+
+	return object;
+}
+
+QJsonObject
 target_to_json(const AntennaTarget &target)
 {
 	QJsonObject object;
@@ -175,6 +191,38 @@ read_targets(const QJsonArray &array, QVector<AntennaTarget> &targets, QString &
 }
 
 bool
+read_propagation_settings(const QJsonObject &object, PropagationProjectSettings &settings, QString &error_message)
+{
+	if (!object.contains(QStringLiteral("propagationReference")))
+		return true;
+
+	const QJsonObject settings_object = object.value(QStringLiteral("propagationReference")).toObject();
+	const double tx_height_metres = settings_object.value(QStringLiteral("txHeightMetres")).toDouble(10.0);
+	const double rx_height_metres = settings_object.value(QStringLiteral("rxHeightMetres")).toDouble(10.0);
+	const double power_watts = settings_object.value(QStringLiteral("powerWatts")).toDouble(0.0);
+
+	if (tx_height_metres < 0.0 || rx_height_metres < 0.0) {
+		error_message = QStringLiteral("Propagation antenna heights cannot be negative.");
+		return false;
+	}
+	if (power_watts < 0.0) {
+		error_message = QStringLiteral("Propagation power cannot be negative.");
+		return false;
+	}
+
+	settings.enabled = true;
+	settings.include_in_guides = settings_object.value(QStringLiteral("includeInGuides")).toBool(true);
+	settings.mode = reference::mode_type_from_key(settings_object.value(QStringLiteral("mode")).toString());
+	settings.environment = reference::environment_profile_from_key(settings_object.value(QStringLiteral("environment")).toString());
+	settings.tx_height_metres = tx_height_metres;
+	settings.rx_height_metres = rx_height_metres;
+	settings.power_watts = power_watts;
+	settings.has_power_watts = settings_object.value(QStringLiteral("hasPowerWatts")).toBool(false);
+
+	return true;
+}
+
+bool
 read_yagi_design(const QJsonObject &object, YagiProjectDesign &design, QString &error_message)
 {
 	if (!object.contains(QStringLiteral("yagiDesign")))
@@ -252,6 +300,8 @@ from_json(const QJsonObject &object, AntennaProject &project, QString &error_mes
 		return false;
 	if (!read_diagram_items(object.value(QStringLiteral("diagram_items")).toArray(), parsed.diagram_items, error_message))
 		return false;
+	if (!read_propagation_settings(object, parsed.propagation_settings, error_message))
+		return false;
 	if (!read_yagi_design(object, parsed.yagi_design, error_message))
 		return false;
 
@@ -286,6 +336,8 @@ to_json(const AntennaProject &project)
 	object.insert(QStringLiteral("title"), project.title);
 	object.insert(QStringLiteral("updated_utc"), project.updated_utc);
 	object.insert(QStringLiteral("velocity_factor"), project.velocity_factor);
+	if (project.propagation_settings.enabled)
+		object.insert(QStringLiteral("propagationReference"), propagation_settings_to_json(project.propagation_settings));
 	if (project.yagi_design.enabled)
 		object.insert(QStringLiteral("yagiDesign"), yagi_design_to_json(project.yagi_design));
 

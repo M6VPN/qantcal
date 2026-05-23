@@ -7,6 +7,8 @@
 #include "calculators/antenna_calculator.h"
 #include "calculators/rf_units.h"
 #include "calculators/yagi_calculator.h"
+#include "reference/mode_reference.h"
+#include "reference/reach_estimator.h"
 
 #include <QPointF>
 #include <QString>
@@ -50,6 +52,17 @@ struct YagiProjectDesign {
 	double boom_correction_metres = 0.0;
 };
 
+struct PropagationProjectSettings {
+	bool enabled = false;
+	bool include_in_guides = true;
+	reference::ModeType mode = reference::ModeType::SsbVoice;
+	reference::EnvironmentProfile environment = reference::EnvironmentProfile::Suburban;
+	double tx_height_metres = 10.0;
+	double rx_height_metres = 10.0;
+	double power_watts = 0.0;
+	bool has_power_watts = false;
+};
+
 struct AntennaProject {
 	QString created_utc;
 	QString notes;
@@ -59,6 +72,7 @@ struct AntennaProject {
 	QVector<AntennaTarget> targets;
 	QVector<DiagramItemDescriptor> diagram_items;
 	YagiProjectDesign yagi_design;
+	PropagationProjectSettings propagation_settings;
 	calculators::AntennaType antenna_type = calculators::AntennaType::HalfWaveDipole;
 	calculators::LengthUnit preferred_length_unit = calculators::LengthUnit::Metres;
 	double velocity_factor = calculators::DEFAULT_WIRE_FACTOR;

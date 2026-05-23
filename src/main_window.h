@@ -43,6 +43,7 @@ private:
 	void create_actions();
 	void create_antenna_tab(QTabWidget *tabs);
 	void create_central_widget();
+	void create_band_propagation_tab(QTabWidget *tabs);
 	void create_rf_calculators_tab(QTabWidget *tabs);
 	void export_pdf();
 	void calculate_yagi();
@@ -72,6 +73,8 @@ private:
 	void target_item_changed(QListWidgetItem *item);
 	void update_diagram_item_descriptor(const project::DiagramItemDescriptor &descriptor);
 	void update_project_title();
+	void update_reference_panel();
+	void update_reference_height_inputs();
 	void update_target_list();
 	void update_yagi_controls();
 	double project_restore_frequency_mhz() const;
@@ -83,6 +86,9 @@ private:
 	QComboBox *band_box = nullptr;
 	QComboBox *design_mode_box = nullptr;
 	QComboBox *length_unit_box = nullptr;
+	QComboBox *propagation_band_box = nullptr;
+	QComboBox *propagation_environment_box = nullptr;
+	QComboBox *propagation_mode_box = nullptr;
 	QComboBox *yagi_preset_box = nullptr;
 	QDoubleSpinBox *frequency_box = nullptr;
 	QDoubleSpinBox *coil_diameter_box = nullptr;
@@ -97,6 +103,9 @@ private:
 	QDoubleSpinBox *swr_forward_power_box = nullptr;
 	QDoubleSpinBox *swr_value_box = nullptr;
 	QDoubleSpinBox *velocity_factor_box = nullptr;
+	QDoubleSpinBox *propagation_power_box = nullptr;
+	QDoubleSpinBox *propagation_rx_height_box = nullptr;
+	QDoubleSpinBox *propagation_tx_height_box = nullptr;
 	QDoubleSpinBox *yagi_boom_correction_box = nullptr;
 	QDoubleSpinBox *yagi_element_diameter_box = nullptr;
 	design::AntennaDesignView *design_view = nullptr;
@@ -107,6 +116,8 @@ private:
 	QTextEdit *horizon_result_text = nullptr;
 	QTextEdit *lc_result_text = nullptr;
 	QTextEdit *project_notes_edit = nullptr;
+	QTextEdit *reference_text = nullptr;
+	QTextEdit *reach_text = nullptr;
 	QTextEdit *result_text = nullptr;
 	QTextEdit *swr_result_text = nullptr;
 	QSpinBox *yagi_element_count_box = nullptr;

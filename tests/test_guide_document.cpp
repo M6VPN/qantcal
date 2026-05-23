@@ -78,6 +78,21 @@ sample_yagi_project()
 	return project;
 }
 
+qantcal::project::AntennaProject
+sample_propagation_project()
+{
+	qantcal::project::AntennaProject project = sample_project();
+
+	project.propagation_settings.enabled = true;
+	project.propagation_settings.include_in_guides = true;
+	project.propagation_settings.mode = qantcal::reference::ModeType::SsbVoice;
+	project.propagation_settings.environment = qantcal::reference::EnvironmentProfile::Suburban;
+	project.propagation_settings.tx_height_metres = 10.0;
+	project.propagation_settings.rx_height_metres = 10.0;
+
+	return project;
+}
+
 void
 test_assumptions_and_safety_notes()
 {
@@ -142,6 +157,22 @@ test_target_band_frequency_data()
 }
 
 void
+test_propagation_warning_included()
+{
+	const qantcal::guides::GuideDocument document =
+		qantcal::guides::create_project_guide_document(sample_propagation_project(), qantcal::calculators::LengthUnit::Metres);
+	bool found_warning = false;
+
+	for (const qantcal::guides::GuideSection &section : document.sections) {
+		found_warning = found_warning
+			|| section.body_text.contains(QStringLiteral("not a propagation prediction"))
+			|| section.body_text.contains(QStringLiteral("Convenience design reference only"));
+	}
+
+	assert(found_warning);
+}
+
+void
 test_unit_formatting()
 {
 	const qantcal::guides::GuideDocument document =
@@ -193,6 +224,7 @@ main()
 	test_assumptions_and_safety_notes();
 	test_document_from_project();
 	test_multi_band_rows();
+	test_propagation_warning_included();
 	test_target_band_frequency_data();
 	test_unit_formatting();
 	test_yagi_document_contains_yagi_sections();

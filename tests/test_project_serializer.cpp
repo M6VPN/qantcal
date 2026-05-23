@@ -72,6 +72,23 @@ sample_yagi_project()
 	return project;
 }
 
+qantcal::project::AntennaProject
+sample_propagation_project()
+{
+	qantcal::project::AntennaProject project = sample_project(1);
+
+	project.propagation_settings.enabled = true;
+	project.propagation_settings.include_in_guides = true;
+	project.propagation_settings.mode = qantcal::reference::ModeType::Cw;
+	project.propagation_settings.environment = qantcal::reference::EnvironmentProfile::Rural;
+	project.propagation_settings.tx_height_metres = 12.0;
+	project.propagation_settings.rx_height_metres = 8.0;
+	project.propagation_settings.has_power_watts = true;
+	project.propagation_settings.power_watts = 25.0;
+
+	return project;
+}
+
 void
 test_default_round_trip()
 {
@@ -163,6 +180,23 @@ test_one_target_round_trip()
 	assert(qantcal::project::from_json(qantcal::project::to_json(project), parsed, error));
 	assert(parsed.targets.size() == 1);
 	assert(parsed.targets[0].frequency_mhz == 7.1);
+}
+
+void
+test_propagation_settings_round_trip()
+{
+	const qantcal::project::AntennaProject project = sample_propagation_project();
+	qantcal::project::AntennaProject parsed;
+	QString error;
+
+	assert(qantcal::project::from_json(qantcal::project::to_json(project), parsed, error));
+	assert(parsed.propagation_settings.enabled);
+	assert(parsed.propagation_settings.mode == qantcal::reference::ModeType::Cw);
+	assert(parsed.propagation_settings.environment == qantcal::reference::EnvironmentProfile::Rural);
+	assert(near(parsed.propagation_settings.tx_height_metres, 12.0));
+	assert(near(parsed.propagation_settings.rx_height_metres, 8.0));
+	assert(parsed.propagation_settings.has_power_watts);
+	assert(near(parsed.propagation_settings.power_watts, 25.0));
 }
 
 void
@@ -279,6 +313,7 @@ main()
 	test_negative_length_rejected();
 	test_one_target_round_trip();
 	test_older_project_without_yagi_design_loads();
+	test_propagation_settings_round_trip();
 	test_round_trip_preserves_diagram_fields();
 	test_unknown_field_ignored();
 	test_unsupported_schema_rejected();

@@ -30,6 +30,7 @@ Progress:
 - basic PDF export
 - printable PDF export with project sections, assumptions, and safety notes
 - RF helper calculators for air-core coils, LC resonance, SWR/reflected power, and radio horizon
+- band reference and cautious propagation notes
 - a small pure C++ calculator test executable
 
 ## Screenshots
@@ -61,6 +62,7 @@ See [BUILDING.md](BUILDING.md) for platform notes and CMake commands.
 
 - [Project plan](docs/PROJECT_PLAN.md)
 - [Formulas and sources](docs/FORMULAS_AND_SOURCES.md)
+- [Band reference](docs/BAND_REFERENCE.md)
 
 ## Packaging
 

@@ -9,6 +9,10 @@ add_executable(test_antenna_measurement
 	test_antenna_measurement.cpp
 )
 
+add_executable(test_band_reference
+	test_band_reference.cpp
+)
+
 add_executable(test_coil_calculator
 	test_coil_calculator.cpp
 )
@@ -29,8 +33,20 @@ add_executable(test_lc_resonance_calculator
 	test_lc_resonance_calculator.cpp
 )
 
+add_executable(test_mode_reference
+	test_mode_reference.cpp
+)
+
+add_executable(test_propagation_notes
+	test_propagation_notes.cpp
+)
+
 add_executable(test_radio_horizon_calculator
 	test_radio_horizon_calculator.cpp
+)
+
+add_executable(test_reach_estimator
+	test_reach_estimator.cpp
 )
 
 add_executable(test_project_file_io
@@ -63,6 +79,11 @@ target_link_libraries(test_antenna_measurement
 		qantcal_ui
 )
 
+target_link_libraries(test_band_reference
+	PRIVATE
+		qantcal_core
+)
+
 target_link_libraries(test_coil_calculator
 	PRIVATE
 		qantcal_core
@@ -88,7 +109,22 @@ target_link_libraries(test_lc_resonance_calculator
 		qantcal_core
 )
 
+target_link_libraries(test_mode_reference
+	PRIVATE
+		qantcal_core
+)
+
+target_link_libraries(test_propagation_notes
+	PRIVATE
+		qantcal_core
+)
+
 target_link_libraries(test_radio_horizon_calculator
+	PRIVATE
+		qantcal_core
+)
+
+target_link_libraries(test_reach_estimator
 	PRIVATE
 		qantcal_core
 )
@@ -129,6 +165,11 @@ add_test(
 )
 
 add_test(
+	NAME test_band_reference
+	COMMAND test_band_reference
+)
+
+add_test(
 	NAME test_coil_calculator
 	COMMAND test_coil_calculator
 )
@@ -154,8 +195,23 @@ add_test(
 )
 
 add_test(
+	NAME test_mode_reference
+	COMMAND test_mode_reference
+)
+
+add_test(
+	NAME test_propagation_notes
+	COMMAND test_propagation_notes
+)
+
+add_test(
 	NAME test_radio_horizon_calculator
 	COMMAND test_radio_horizon_calculator
+)
+
+add_test(
+	NAME test_reach_estimator
+	COMMAND test_reach_estimator
 )
 
 add_test(
@@ -186,12 +242,16 @@ add_test(
 set_tests_properties(
 	test_antenna_calculator
 	test_antenna_measurement
+	test_band_reference
 	test_coil_calculator
 	test_ham_band
 	test_guide_document
 	test_guide_renderer
 	test_lc_resonance_calculator
+	test_mode_reference
+	test_propagation_notes
 	test_radio_horizon_calculator
+	test_reach_estimator
 	test_project_file_io
 	test_project_serializer
 	test_rf_units

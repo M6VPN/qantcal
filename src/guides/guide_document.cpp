@@ -4,6 +4,10 @@
 #include "guide_document.h"
 
 #include "calculators/rf_units.h"
+#include "reference/band_reference.h"
+#include "reference/mode_reference.h"
+#include "reference/propagation_notes.h"
+#include "reference/reach_estimator.h"
 
 #include <QDateTime>
 
@@ -56,6 +60,70 @@ append_standard_sections(GuideDocument &document)
 		QStringLiteral("Users must obey their licence terms, band plans, RF exposure rules, local planning restrictions, and electrical safety requirements. This guide is not legal, safety, or compliance authority."),
 		true
 	));
+}
+
+void
+append_propagation_sections(GuideDocument &document, const project::AntennaProject &project, calculators::LengthUnit length_unit)
+{
+	if (!project.propagation_settings.enabled || !project.propagation_settings.include_in_guides)
+		return;
+
+	reference::BandReference band;
+	reference::ModeReference mode;
+	reference::PropagationProfile profile;
+	const double frequency_mhz = project.targets.isEmpty()
+		? project.yagi_design.frequency_mhz
+		: project.targets[0].frequency_mhz;
+	QString band_name;
+
+	if (reference::band_reference_by_frequency(frequency_mhz, band))
+		band_name = band.name;
+	if (reference::mode_reference_by_key(reference::mode_type_key(project.propagation_settings.mode), mode)) {
+		document.sections.append(make_text_section(
+			QStringLiteral("Mode reference"),
+			QStringLiteral("%1\nBandwidth category: %2\nWeak-signal note: %3\nCaution: %4")
+				.arg(mode.name)
+				.arg(mode.bandwidth_category)
+				.arg(mode.weak_signal_notes)
+				.arg(mode.caution)
+		));
+	}
+	if (!band_name.isEmpty() && reference::propagation_profile_by_band_name(band_name, profile)) {
+		document.sections.append(make_text_section(
+			QStringLiteral("Propagation notes"),
+			QStringLiteral("%1\nCategories: %2\nDay/night tendency: %3\nCharacter: %4\nVariability: %5\n\n%6")
+				.arg(band_name)
+				.arg(profile.categories.join(QStringLiteral(", ")))
+				.arg(profile.day_night_tendency)
+				.arg(profile.character)
+				.arg(profile.variability)
+				.arg(reference::band_reference_warning()),
+			true
+		));
+	}
+
+	reference::ReachEstimateInput input;
+	input.frequency_mhz = frequency_mhz;
+	input.band_name = band_name;
+	input.mode = project.propagation_settings.mode;
+	input.environment = project.propagation_settings.environment;
+	input.tx_height_metres = project.propagation_settings.tx_height_metres;
+	input.rx_height_metres = project.propagation_settings.rx_height_metres;
+	input.power_watts = project.propagation_settings.power_watts;
+	input.has_power_watts = project.propagation_settings.has_power_watts;
+	const reference::ReachEstimateResult estimate = reference::estimate_reach(input);
+	if (estimate.ok) {
+		QString body = estimate.summary;
+		body += QStringLiteral("\nCategories: %1").arg(estimate.categories.join(QStringLiteral(", ")));
+		if (estimate.includes_radio_horizon) {
+			body += QStringLiteral("\nTX horizon: %1\nRX horizon: %2\nCombined radio horizon: %3")
+				.arg(QString::fromStdString(calculators::format_length(estimate.tx_horizon_km * 1000.0, length_unit)))
+				.arg(QString::fromStdString(calculators::format_length(estimate.rx_horizon_km * 1000.0, length_unit)))
+				.arg(QString::fromStdString(calculators::format_length(estimate.combined_horizon_km * 1000.0, length_unit)));
+		}
+		body += QStringLiteral("\nWarnings:\n%1").arg(estimate.warnings.join(QStringLiteral("\n")));
+		document.sections.append(make_text_section(QStringLiteral("Reach guidance"), body, true));
+	}
 }
 
 }
@@ -192,6 +260,7 @@ create_project_guide_document(
 		));
 	}
 	document.sections.append(make_text_section(QStringLiteral("Diagram"), QStringLiteral("Diagram snapshot is rendered from the current design canvas.")));
+	append_propagation_sections(document, project, length_unit);
 	append_standard_sections(document);
 
 	return document;
