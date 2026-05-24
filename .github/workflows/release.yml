@@ -77,32 +77,38 @@ jobs:
 
   linux-deb:
     name: DEB ${{ matrix.name }}
-    runs-on: ubuntu-24.04
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - name: ubuntu-24.04-amd64
+            runner: ubuntu-24.04
             image: ubuntu:24.04
             platform: linux/amd64
             label: 0.1.0-alpha.1-ubuntu24.04-amd64
           - name: ubuntu-24.04-arm64
+            runner: ubuntu-24.04-arm
             image: ubuntu:24.04
             platform: linux/arm64
             label: 0.1.0-alpha.1-ubuntu24.04-arm64
           - name: ubuntu-24.04-armhf
+            runner: ubuntu-24.04-arm
             image: ubuntu:24.04
             platform: linux/arm/v7
             label: 0.1.0-alpha.1-ubuntu24.04-armhf
           - name: debian-trixie-amd64
+            runner: ubuntu-24.04
             image: debian:trixie
             platform: linux/amd64
             label: 0.1.0-alpha.1-debian-trixie-amd64
           - name: debian-trixie-arm64
+            runner: ubuntu-24.04-arm
             image: debian:trixie
             platform: linux/arm64
             label: 0.1.0-alpha.1-debian-trixie-arm64
           - name: debian-trixie-armhf
+            runner: ubuntu-24.04-arm
             image: debian:trixie
             platform: linux/arm/v7
             label: 0.1.0-alpha.1-debian-trixie-armhf
@@ -135,24 +141,28 @@ jobs:
 
   linux-rpm:
     name: RPM ${{ matrix.name }}
-    runs-on: ubuntu-24.04
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - name: fedora-latest-x86_64
+            runner: ubuntu-24.04
             image: fedora:latest
             platform: linux/amd64
             label: 0.1.0-alpha.1-fedora-latest-x86_64
           - name: fedora-latest-aarch64
+            runner: ubuntu-24.04-arm
             image: fedora:latest
             platform: linux/arm64
             label: 0.1.0-alpha.1-fedora-latest-aarch64
           - name: rocky-latest-x86_64
+            runner: ubuntu-24.04
             image: rockylinux/rockylinux:10
             platform: linux/amd64
             label: 0.1.0-alpha.1-rocky-latest-x86_64
           - name: rocky-latest-aarch64
+            runner: ubuntu-24.04-arm
             image: rockylinux/rockylinux:10
             platform: linux/arm64
             label: 0.1.0-alpha.1-rocky-latest-aarch64
