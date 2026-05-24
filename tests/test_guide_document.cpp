@@ -288,6 +288,24 @@ test_build_checklist_exists()
 }
 
 void
+test_folded_dipole_single_guide_has_folded_diagram()
+{
+	qantcal::calculators::AntennaCalculationInput input;
+
+	input.antenna_type = qantcal::calculators::AntennaType::FoldedDipole;
+	input.frequency_mhz = 7.1;
+
+	const qantcal::calculators::AntennaCalculationResult result =
+		qantcal::calculators::calculate_antenna(input);
+	const qantcal::guides::GuideDocument document =
+		qantcal::guides::create_guide_document(result, qantcal::calculators::LengthUnit::Metres, QStringLiteral("40m"));
+
+	assert(document.diagram_items.size() == 1);
+	assert(document.diagram_items[0].kind == QStringLiteral("folded_dipole"));
+	assert(document.diagram_items[0].points.size() == 7);
+}
+
+void
 test_lf_mf_materials_include_loading_and_counterpoise()
 {
 	const qantcal::guides::GuideDocument document =
@@ -319,6 +337,22 @@ test_unit_formatting()
 		qantcal::guides::create_project_guide_document(sample_project(), qantcal::calculators::LengthUnit::Centimetres);
 
 	assert(document.dimensions_text.contains(QStringLiteral("2005.70 cm")));
+}
+
+void
+test_project_without_saved_diagram_gets_target_diagrams()
+{
+	qantcal::project::AntennaProject project = sample_project();
+
+	project.antenna_type = qantcal::calculators::AntennaType::FoldedDipole;
+	project.diagram_items.clear();
+
+	const qantcal::guides::GuideDocument document =
+		qantcal::guides::create_project_guide_document(project, qantcal::calculators::LengthUnit::Metres);
+
+	assert(document.diagram_items.size() == project.elements.size());
+	assert(document.diagram_items[0].kind == QStringLiteral("folded_dipole"));
+	assert(document.diagram_items[1].position.y() > document.diagram_items[0].position.y());
 }
 
 void
@@ -438,11 +472,13 @@ main()
 	test_broadcast_warning_included();
 	test_build_checklist_exists();
 	test_document_from_project();
+	test_folded_dipole_single_guide_has_folded_diagram();
 	test_lf_mf_materials_include_loading_and_counterpoise();
 	test_lf_mf_warning_included();
 	test_multi_band_guidance_section();
 	test_multi_band_rows();
 	test_propagation_warning_included();
+	test_project_without_saved_diagram_gets_target_diagrams();
 	test_project_material_list_contains_elements();
 	test_single_guide_material_list_contains_wire_length();
 	test_target_band_frequency_data();

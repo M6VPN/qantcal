@@ -71,6 +71,122 @@ formatted_length(double metres, calculators::LengthUnit length_unit)
 	return QString::fromStdString(calculators::format_length(metres, length_unit));
 }
 
+QString
+diagram_kind_for_antenna(calculators::AntennaType antenna_type)
+{
+	switch (antenna_type) {
+	case calculators::AntennaType::FoldedDipole:
+		return QStringLiteral("folded_dipole");
+	case calculators::AntennaType::FullWaveLoop:
+		return QStringLiteral("loop");
+	case calculators::AntennaType::QuarterWaveVertical:
+		return QStringLiteral("vertical");
+	case calculators::AntennaType::EndFedHalfWave:
+		return QStringLiteral("end_fed");
+	case calculators::AntennaType::InvertedVee:
+		return QStringLiteral("inverted_vee");
+	case calculators::AntennaType::RandomWire:
+		return QStringLiteral("random_wire");
+	case calculators::AntennaType::HalfWaveDipole:
+	case calculators::AntennaType::Yagi:
+		return QStringLiteral("dipole");
+	}
+
+	return QStringLiteral("dipole");
+}
+
+QVector<QPointF>
+diagram_points_for_antenna(calculators::AntennaType antenna_type)
+{
+	switch (antenna_type) {
+	case calculators::AntennaType::FoldedDipole:
+		return {
+			QPointF(-220.0, -18.0),
+			QPointF(220.0, -18.0),
+			QPointF(220.0, 18.0),
+			QPointF(14.0, 18.0),
+			QPointF(-14.0, 18.0),
+			QPointF(-220.0, 18.0),
+			QPointF(-220.0, -18.0)
+		};
+	case calculators::AntennaType::FullWaveLoop:
+		return {
+			QPointF(0.0, -70.0),
+			QPointF(160.0, 0.0),
+			QPointF(0.0, 70.0),
+			QPointF(-160.0, 0.0)
+		};
+	case calculators::AntennaType::InvertedVee:
+		return {
+			QPointF(-220.0, 45.0),
+			QPointF(0.0, -55.0),
+			QPointF(220.0, 45.0)
+		};
+	case calculators::AntennaType::QuarterWaveVertical:
+		return {
+			QPointF(0.0, 70.0),
+			QPointF(0.0, -80.0),
+			QPointF(0.0, 70.0),
+			QPointF(-120.0, 105.0),
+			QPointF(0.0, 70.0),
+			QPointF(120.0, 105.0)
+		};
+	case calculators::AntennaType::EndFedHalfWave:
+	case calculators::AntennaType::HalfWaveDipole:
+	case calculators::AntennaType::Yagi:
+		return {
+			QPointF(-220.0, 0.0),
+			QPointF(220.0, 0.0)
+		};
+	case calculators::AntennaType::RandomWire:
+		return {
+			QPointF(-220.0, 20.0),
+			QPointF(-110.0, -35.0),
+			QPointF(20.0, 8.0),
+			QPointF(130.0, -45.0),
+			QPointF(220.0, -20.0)
+		};
+	}
+
+	return {
+		QPointF(-220.0, 0.0),
+		QPointF(220.0, 0.0)
+	};
+}
+
+project::DiagramItemDescriptor
+diagram_item_for_antenna(
+	calculators::AntennaType antenna_type,
+	const QString &id,
+	const QString &label,
+	double length_metres,
+	const QPointF &position
+)
+{
+	project::DiagramItemDescriptor item;
+
+	item.id = id;
+	item.kind = diagram_kind_for_antenna(antenna_type);
+	item.label = label;
+	item.length_metres = length_metres;
+	item.points = diagram_points_for_antenna(antenna_type);
+	item.position = position;
+
+	return item;
+}
+
+project::DiagramItemDescriptor
+diagram_item_for_result(const calculators::AntennaCalculationResult &result)
+{
+	return diagram_item_for_antenna(
+		result.antenna_type,
+		QStringLiteral("current-antenna"),
+		QString::fromUtf8(calculators::antenna_type_label(result.antenna_type)),
+		result.total_length_m > 0.0 ? result.total_length_m : result.radiator_length_m,
+		QPointF()
+	);
+}
+
 void
 append_single_build_sheet_sections(
 	GuideDocument &document,
@@ -83,6 +199,8 @@ append_single_build_sheet_sections(
 
 	materials.title = QStringLiteral("Material list");
 	append_material_row(materials, QStringLiteral("Antenna wire"), formatted_length(result.total_length_m, length_unit), QStringLiteral("Cut long where practical, then trim while measuring."));
+	if (result.antenna_type == calculators::AntennaType::FoldedDipole)
+		append_material_row(materials, QStringLiteral("Folded return conductor"), formatted_length(result.total_length_m, length_unit), QStringLiteral("Keep spacing and feed arrangement consistent through both sides."));
 	append_material_row(materials, QStringLiteral("Dipole legs"), formatted_length(result.leg_length_m, length_unit), QStringLiteral("Two equal legs from the calculated total length."));
 	append_material_row(materials, QStringLiteral("Vertical radiator"), formatted_length(result.radiator_length_m, length_unit), QStringLiteral("Use with a radial or counterpoise system."));
 	append_material_row(materials, QStringLiteral("Feed or matching hardware"), QStringLiteral("as required"), QString::fromStdString(result.matching_note));
@@ -331,6 +449,8 @@ create_guide_document(
 	document.project_title = QStringLiteral("Current antenna");
 	document.title = QStringLiteral("qantcal antenna guide");
 	document.velocity_factor = result.shortening_factor;
+	if (result.ok)
+		document.diagram_items.append(diagram_item_for_result(result));
 
 	append_dimension(dimensions, QStringLiteral("Wavelength"), result.wavelength_m, length_unit);
 	append_dimension(dimensions, QStringLiteral("Total length"), result.total_length_m, length_unit);
@@ -392,6 +512,19 @@ create_project_guide_document(
 	document.title = project.title.isEmpty() ? QStringLiteral("qantcal antenna guide") : project.title;
 	document.velocity_factor = project.velocity_factor;
 	document.diagram_items = project.diagram_items;
+	if (document.diagram_items.isEmpty()) {
+		int element_index = 0;
+		for (const project::AntennaElement &element : project.elements) {
+			document.diagram_items.append(diagram_item_for_antenna(
+				project.antenna_type,
+				QStringLiteral("element-%1").arg(element_index + 1),
+				element.label,
+				element.length_metres,
+				QPointF(0.0, -130.0 + element_index * 58.0)
+			));
+			++element_index;
+		}
+	}
 
 	for (const project::AntennaElement &element : project.elements) {
 		if (project.antenna_type == calculators::AntennaType::Yagi) {

@@ -131,6 +131,16 @@ diagram_points(const project::DiagramItemDescriptor &item)
 	return points;
 }
 
+bool
+is_feedpoint_kind(const QString &kind)
+{
+	return kind == QStringLiteral("dipole")
+		|| kind == QStringLiteral("folded_dipole")
+		|| kind == QStringLiteral("end_fed")
+		|| kind == QStringLiteral("vertical")
+		|| kind == QStringLiteral("yagi_element");
+}
+
 QRectF
 diagram_bounds(const QVector<project::DiagramItemDescriptor> &items)
 {
@@ -228,14 +238,24 @@ draw_diagram(QPainter &painter, RenderState &state, const GuideDocument &documen
 			mapped_points << map_diagram_point(point, bounds, diagram_rect);
 		if (mapped_points.size() >= 2) {
 			painter.setPen(item.kind == QStringLiteral("yagi_element") ? yagi_pen : wire_pen);
-			for (int i = 1; i < mapped_points.size(); ++i)
-				painter.drawLine(mapped_points[i - 1], mapped_points[i]);
+			if (item.kind == QStringLiteral("loop")) {
+				painter.drawPolygon(mapped_points);
+			} else if (item.kind == QStringLiteral("folded_dipole") && mapped_points.size() >= 7) {
+				painter.drawLine(mapped_points[0], mapped_points[1]);
+				painter.drawLine(mapped_points[1], mapped_points[2]);
+				painter.drawLine(mapped_points[2], mapped_points[3]);
+				painter.drawLine(mapped_points[4], mapped_points[5]);
+				painter.drawLine(mapped_points[5], mapped_points[6]);
+			} else {
+				for (int i = 1; i < mapped_points.size(); ++i)
+					painter.drawLine(mapped_points[i - 1], mapped_points[i]);
+			}
 		}
 
 		const QPointF label_point = mapped_points.isEmpty()
 			? diagram_rect.center()
 			: mapped_points.boundingRect().center();
-		if (item.kind == QStringLiteral("yagi_element")) {
+		if (is_feedpoint_kind(item.kind)) {
 			painter.setPen(feed_pen);
 			painter.drawEllipse(label_point, 3.5, 3.5);
 		}

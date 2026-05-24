@@ -32,6 +32,20 @@ sample_document()
 }
 
 qantcal::guides::GuideDocument
+sample_folded_dipole_document()
+{
+	qantcal::calculators::AntennaCalculationInput input;
+
+	input.antenna_type = qantcal::calculators::AntennaType::FoldedDipole;
+	input.frequency_mhz = 7.1;
+
+	const qantcal::calculators::AntennaCalculationResult result =
+		qantcal::calculators::calculate_antenna(input);
+
+	return qantcal::guides::create_guide_document(result, qantcal::calculators::LengthUnit::Metres, QStringLiteral("40m"));
+}
+
+qantcal::guides::GuideDocument
 sample_line_diagram_document()
 {
 	qantcal::project::AntennaProject project = qantcal::project::default_project();
@@ -123,6 +137,24 @@ test_render_empty_diagram_document()
 }
 
 void
+test_render_folded_dipole_pdf()
+{
+	QTemporaryFile file;
+	qantcal::guides::GuideRenderer renderer;
+	const qantcal::guides::GuideDocument document = sample_folded_dipole_document();
+
+	assert(document.diagram_items.size() == 1);
+	assert(document.diagram_items[0].kind == QStringLiteral("folded_dipole"));
+	assert(file.open());
+	const QString path = file.fileName();
+	file.close();
+
+	assert(renderer.render_to_pdf(document, path, qantcal::guides::default_export_options()));
+	assert(QFile::exists(path));
+	assert(QFile(path).size() > 0);
+}
+
+void
 test_render_line_diagram_pdf()
 {
 	QTemporaryFile file;
@@ -165,6 +197,7 @@ main(int argc, char *argv[])
 
 	test_export_options_defaults();
 	test_render_empty_diagram_document();
+	test_render_folded_dipole_pdf();
 	test_render_line_diagram_pdf();
 	test_render_yagi_pdf();
 

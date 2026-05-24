@@ -151,6 +151,114 @@ private:
 };
 
 QString
+diagram_kind_for_antenna(calculators::AntennaType antenna_type)
+{
+	switch (antenna_type) {
+	case calculators::AntennaType::FoldedDipole:
+		return QStringLiteral("folded_dipole");
+	case calculators::AntennaType::FullWaveLoop:
+		return QStringLiteral("loop");
+	case calculators::AntennaType::QuarterWaveVertical:
+		return QStringLiteral("vertical");
+	case calculators::AntennaType::EndFedHalfWave:
+		return QStringLiteral("end_fed");
+	case calculators::AntennaType::InvertedVee:
+		return QStringLiteral("inverted_vee");
+	case calculators::AntennaType::RandomWire:
+		return QStringLiteral("random_wire");
+	case calculators::AntennaType::HalfWaveDipole:
+	case calculators::AntennaType::Yagi:
+		return QStringLiteral("dipole");
+	}
+
+	return QStringLiteral("dipole");
+}
+
+QVector<QPointF>
+diagram_points_for_antenna(calculators::AntennaType antenna_type)
+{
+	switch (antenna_type) {
+	case calculators::AntennaType::FoldedDipole:
+		return {
+			QPointF(-220.0, -18.0),
+			QPointF(220.0, -18.0),
+			QPointF(220.0, 18.0),
+			QPointF(14.0, 18.0),
+			QPointF(-14.0, 18.0),
+			QPointF(-220.0, 18.0),
+			QPointF(-220.0, -18.0)
+		};
+	case calculators::AntennaType::FullWaveLoop:
+		return {
+			QPointF(0.0, -70.0),
+			QPointF(160.0, 0.0),
+			QPointF(0.0, 70.0),
+			QPointF(-160.0, 0.0)
+		};
+	case calculators::AntennaType::InvertedVee:
+		return {
+			QPointF(-220.0, 45.0),
+			QPointF(0.0, -55.0),
+			QPointF(220.0, 45.0)
+		};
+	case calculators::AntennaType::QuarterWaveVertical:
+		return {
+			QPointF(0.0, 70.0),
+			QPointF(0.0, -80.0),
+			QPointF(0.0, 70.0),
+			QPointF(-120.0, 105.0),
+			QPointF(0.0, 70.0),
+			QPointF(120.0, 105.0)
+		};
+	case calculators::AntennaType::EndFedHalfWave:
+		return {
+			QPointF(-220.0, 0.0),
+			QPointF(220.0, 0.0)
+		};
+	case calculators::AntennaType::RandomWire:
+		return {
+			QPointF(-220.0, 20.0),
+			QPointF(-110.0, -35.0),
+			QPointF(20.0, 8.0),
+			QPointF(130.0, -45.0),
+			QPointF(220.0, -20.0)
+		};
+	case calculators::AntennaType::HalfWaveDipole:
+	case calculators::AntennaType::Yagi:
+		return {
+			QPointF(-220.0, 0.0),
+			QPointF(220.0, 0.0)
+		};
+	}
+
+	return {
+		QPointF(-220.0, 0.0),
+		QPointF(220.0, 0.0)
+	};
+}
+
+project::DiagramItemDescriptor
+diagram_item_for_antenna(
+	calculators::AntennaType antenna_type,
+	const QString &id,
+	const QString &label,
+	double length_metres,
+	const QPointF &position
+)
+{
+	project::DiagramItemDescriptor item;
+
+	item.id = id;
+	item.kind = diagram_kind_for_antenna(antenna_type);
+	item.label = label;
+	item.length_metres = length_metres;
+	item.points = diagram_points_for_antenna(antenna_type);
+	item.position = position;
+
+	return item;
+}
+
+QString
 result_to_text(const calculators::AntennaCalculationResult &result, calculators::LengthUnit length_unit)
 {
 	if (!result.ok)
@@ -355,10 +463,11 @@ MainWindow::calculate()
 			result_text->append(QStringLiteral("\nService warning: %1").arg(band.warning));
 	}
 	build_project_from_ui();
-	if (current_project.targets.isEmpty())
-		design_scene->show_antenna_diagram(result, current_length_unit);
-	else
-		design_scene->show_project_diagram(current_project, current_length_unit);
+	if (!current_project.targets.isEmpty()) {
+		rebuild_target_calculations(false);
+		return;
+	}
+	design_scene->show_antenna_diagram(result, current_length_unit);
 
 	if (result.ok) {
 		statusBar()->showMessage(QStringLiteral("Calculation updated"));
@@ -1528,6 +1637,14 @@ MainWindow::open_project()
 void
 MainWindow::recalculate_targets()
 {
+	rebuild_target_calculations(true);
+}
+
+void
+MainWindow::rebuild_target_calculations(bool mark_dirty_after_rebuild)
+{
+	int enabled_target_index = 0;
+
 	current_project.elements.clear();
 	current_project.diagram_items.clear();
 	build_project_from_ui();
@@ -1582,21 +1699,22 @@ MainWindow::recalculate_targets()
 		element.role = QStringLiteral("calculated_element");
 		current_project.elements.append(element);
 
-		project::DiagramItemDescriptor item;
-		item.id = QStringLiteral("target-%1").arg(target.frequency_mhz, 0, 'f', 3);
-		item.kind = QStringLiteral("line");
-		item.label = element.label;
-		item.length_metres = element.length_metres;
-		item.points.append(QPointF(-220.0, 0.0));
-		item.points.append(QPointF(220.0, 0.0));
-		current_project.diagram_items.append(item);
+		current_project.diagram_items.append(diagram_item_for_antenna(
+			current_project.antenna_type,
+			QStringLiteral("target-%1").arg(target.frequency_mhz, 0, 'f', 3),
+			element.label,
+			element.length_metres,
+			QPointF(0.0, -130.0 + enabled_target_index * 58.0)
+		));
+		++enabled_target_index;
 	}
 
 	update_target_list();
 	design_scene->show_project_diagram(current_project, current_length_unit);
 	const project::MultiBandGuidance guidance = project::create_multi_band_guidance(current_project);
 	result_text->append(QStringLiteral("\nMulti-band guidance:\n%1").arg(project::multi_band_guidance_text(guidance)));
-	mark_project_dirty();
+	if (mark_dirty_after_rebuild)
+		mark_project_dirty();
 }
 
 void

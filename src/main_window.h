@@ -72,6 +72,7 @@ private:
 	void populate_band_selector();
 	void populate_propagation_band_selector();
 	void recalculate_targets();
+	void rebuild_target_calculations(bool mark_dirty);
 	void remove_selected_target();
 	void restore_settings();
 	void save_antenna_type();

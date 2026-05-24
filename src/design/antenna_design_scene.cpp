@@ -79,7 +79,6 @@ AntennaDesignScene::show_antenna_diagram(
 
 	switch (result.antenna_type) {
 	case calculators::AntennaType::HalfWaveDipole:
-	case calculators::AntennaType::FoldedDipole:
 		addLine(-230.0, 0.0, -12.0, 0.0, wire_pen)->setFlag(QGraphicsItem::ItemIsSelectable, true);
 		addLine(12.0, 0.0, 230.0, 0.0, wire_pen)->setFlag(QGraphicsItem::ItemIsSelectable, true);
 		addEllipse(-12.0, -12.0, 24.0, 24.0, feed_pen, feed_brush);
@@ -88,6 +87,23 @@ AntennaDesignScene::show_antenna_diagram(
 		addText(length_label(QStringLiteral("right leg"), result.leg_length_m, length_unit), label_font)->setPos(80.0, -40.0);
 		addText(QStringLiteral("centre feed"), label_font)->setPos(18.0, 18.0);
 		break;
+	case calculators::AntennaType::FoldedDipole: {
+		QPainterPath folded;
+		folded.moveTo(-230.0, -22.0);
+		folded.lineTo(230.0, -22.0);
+		folded.lineTo(230.0, 22.0);
+		folded.lineTo(14.0, 22.0);
+		folded.moveTo(-14.0, 22.0);
+		folded.lineTo(-230.0, 22.0);
+		folded.lineTo(-230.0, -22.0);
+		addPath(folded, wire_pen)->setFlag(QGraphicsItem::ItemIsSelectable, true);
+		addEllipse(-12.0, 10.0, 24.0, 24.0, feed_pen, feed_brush);
+		addLine(0.0, 34.0, 0.0, 105.0, feed_pen);
+		addText(length_label(QStringLiteral("conductor span"), result.total_length_m, length_unit), label_font)->setPos(-210.0, -62.0);
+		addText(QStringLiteral("folded return conductor"), label_font)->setPos(60.0, 34.0);
+		addText(QStringLiteral("balanced centre feed"), label_font)->setPos(18.0, 58.0);
+		break;
+	}
 	case calculators::AntennaType::InvertedVee:
 		addLine(0.0, -95.0, -220.0, 55.0, wire_pen);
 		addLine(0.0, -95.0, 220.0, 55.0, wire_pen);

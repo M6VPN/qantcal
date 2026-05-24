@@ -33,6 +33,18 @@ path_from_descriptor(const project::DiagramItemDescriptor &descriptor)
 		}
 		return path;
 	}
+	if (descriptor.kind == QStringLiteral("folded_dipole")) {
+		if (descriptor.points.size() >= 7) {
+			path.moveTo(descriptor.points[0]);
+			path.lineTo(descriptor.points[1]);
+			path.lineTo(descriptor.points[2]);
+			path.lineTo(descriptor.points[3]);
+			path.moveTo(descriptor.points[4]);
+			path.lineTo(descriptor.points[5]);
+			path.lineTo(descriptor.points[6]);
+		}
+		return path;
+	}
 
 	if (!descriptor.points.isEmpty()) {
 		path.moveTo(descriptor.points.first());
