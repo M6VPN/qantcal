@@ -77,6 +77,8 @@ diagram_kind_for_antenna(calculators::AntennaType antenna_type)
 	switch (antenna_type) {
 	case calculators::AntennaType::FoldedDipole:
 		return QStringLiteral("folded_dipole");
+	case calculators::AntennaType::Halo:
+		return QStringLiteral("halo");
 	case calculators::AntennaType::FullWaveLoop:
 		return QStringLiteral("loop");
 	case calculators::AntennaType::QuarterWaveVertical:
@@ -108,7 +110,18 @@ diagram_points_for_antenna(calculators::AntennaType antenna_type)
 			QPointF(14.0, 18.0),
 			QPointF(-14.0, 18.0),
 			QPointF(-220.0, 18.0),
-			QPointF(-220.0, -18.0)
+				QPointF(-220.0, -18.0)
+			};
+	case calculators::AntennaType::Halo:
+		return {
+			QPointF(0.0, -95.0),
+			QPointF(68.0, -68.0),
+			QPointF(95.0, 0.0),
+			QPointF(68.0, 68.0),
+			QPointF(0.0, 95.0),
+			QPointF(-68.0, 68.0),
+			QPointF(-95.0, 0.0),
+			QPointF(-68.0, -68.0)
 		};
 	case calculators::AntennaType::FullWaveLoop:
 		return {
@@ -241,6 +254,8 @@ append_single_build_sheet_sections(
 		append_material_row(materials, QStringLiteral("Folded dipole span"), formatted_length(result.total_length_m, length_unit), QStringLiteral("Overall span; total conductor is roughly twice this value."));
 	if (result.loop_side_length_m > 0.0)
 		append_material_row(materials, QStringLiteral("Square/diamond loop side"), formatted_length(result.loop_side_length_m, length_unit), QStringLiteral("One side of a four-sided loop using the calculated circumference."));
+	if (result.antenna_type == calculators::AntennaType::Halo)
+		append_material_row(materials, QStringLiteral("Halo end gap"), formatted_length(result.halo_gap_m, length_unit), QStringLiteral("Starting gap only; trim and adjust matching for resonance."));
 	if (result.leg_length_m > 0.0)
 		append_material_row(materials, QStringLiteral("Dipole legs"), formatted_length(result.leg_length_m, length_unit), QStringLiteral("Two equal legs from the calculated span."));
 	if (result.radiator_length_m > 0.0)
@@ -502,6 +517,8 @@ create_guide_document(
 	}
 	append_dimension(dimensions, QStringLiteral("Per-leg length"), result.leg_length_m, length_unit);
 	append_dimension(dimensions, QStringLiteral("Square/diamond loop side"), result.loop_side_length_m, length_unit);
+	append_dimension(dimensions, QStringLiteral("Halo diameter reference"), result.halo_diameter_m, length_unit);
+	append_dimension(dimensions, QStringLiteral("Halo end-gap starting point"), result.halo_gap_m, length_unit);
 	if (result.conductor_length_m > 0.0 && result.conductor_length_m != result.total_length_m)
 		append_dimension(dimensions, QStringLiteral("Estimated total conductor"), result.conductor_length_m, length_unit);
 	append_dimension(dimensions, QStringLiteral("Radiator length"), result.radiator_length_m, length_unit);

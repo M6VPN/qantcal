@@ -26,6 +26,8 @@ antenna_type_to_key(calculators::AntennaType antenna_type)
 		return QStringLiteral("half_wave_dipole");
 	case calculators::AntennaType::FoldedDipole:
 		return QStringLiteral("folded_dipole");
+	case calculators::AntennaType::Halo:
+		return QStringLiteral("halo");
 	case calculators::AntennaType::QuarterWaveVertical:
 		return QStringLiteral("quarter_wave_vertical");
 	case calculators::AntennaType::EndFedHalfWave:
@@ -48,6 +50,8 @@ antenna_type_from_key(const QString &key)
 {
 	if (key == QStringLiteral("folded_dipole"))
 		return calculators::AntennaType::FoldedDipole;
+	if (key == QStringLiteral("halo"))
+		return calculators::AntennaType::Halo;
 	if (key == QStringLiteral("quarter_wave_vertical"))
 		return calculators::AntennaType::QuarterWaveVertical;
 	if (key == QStringLiteral("end_fed_half_wave"))

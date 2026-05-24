@@ -136,6 +136,7 @@ is_feedpoint_kind(const QString &kind)
 {
 	return kind == QStringLiteral("dipole")
 		|| kind == QStringLiteral("folded_dipole")
+		|| kind == QStringLiteral("halo")
 		|| kind == QStringLiteral("end_fed")
 		|| kind == QStringLiteral("vertical")
 		|| kind == QStringLiteral("yagi_driven_element");

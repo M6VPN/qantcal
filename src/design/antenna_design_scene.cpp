@@ -104,6 +104,21 @@ AntennaDesignScene::show_antenna_diagram(
 		addText(QStringLiteral("balanced centre feed"), label_font)->setPos(18.0, 58.0);
 		break;
 	}
+	case calculators::AntennaType::Halo: {
+		QPainterPath halo;
+		halo.moveTo(-22.0, -105.0);
+		halo.arcTo(-115.0, -115.0, 230.0, 230.0, 100.0, 340.0);
+		addPath(halo, wire_pen)->setFlag(QGraphicsItem::ItemIsSelectable, true);
+		addEllipse(-12.0, 103.0, 24.0, 24.0, feed_pen, feed_brush);
+		addLine(0.0, 127.0, 0.0, 155.0, feed_pen);
+		addLine(-22.0, -105.0, -22.0, -130.0, guide_pen);
+		addLine(22.0, -105.0, 22.0, -130.0, guide_pen);
+		addText(length_label(QStringLiteral("conductor"), result.conductor_length_m, length_unit), label_font)->setPos(-95.0, -155.0);
+		addText(length_label(QStringLiteral("diameter"), result.halo_diameter_m, length_unit), label_font)->setPos(40.0, -20.0);
+		addText(length_label(QStringLiteral("gap"), result.halo_gap_m, length_unit), label_font)->setPos(35.0, -132.0);
+		addText(QStringLiteral("feed opposite gap"), label_font)->setPos(18.0, 112.0);
+		break;
+	}
 	case calculators::AntennaType::InvertedVee:
 		addLine(0.0, -95.0, -220.0, 55.0, wire_pen);
 		addLine(0.0, -95.0, 220.0, 55.0, wire_pen);

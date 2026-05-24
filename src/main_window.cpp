@@ -158,6 +158,8 @@ diagram_kind_for_antenna(calculators::AntennaType antenna_type)
 	switch (antenna_type) {
 	case calculators::AntennaType::FoldedDipole:
 		return QStringLiteral("folded_dipole");
+	case calculators::AntennaType::Halo:
+		return QStringLiteral("halo");
 	case calculators::AntennaType::FullWaveLoop:
 		return QStringLiteral("loop");
 	case calculators::AntennaType::QuarterWaveVertical:
@@ -189,7 +191,18 @@ diagram_points_for_antenna(calculators::AntennaType antenna_type)
 			QPointF(14.0, 18.0),
 			QPointF(-14.0, 18.0),
 			QPointF(-220.0, 18.0),
-			QPointF(-220.0, -18.0)
+				QPointF(-220.0, -18.0)
+			};
+	case calculators::AntennaType::Halo:
+		return {
+			QPointF(0.0, -95.0),
+			QPointF(68.0, -68.0),
+			QPointF(95.0, 0.0),
+			QPointF(68.0, 68.0),
+			QPointF(0.0, 95.0),
+			QPointF(-68.0, 68.0),
+			QPointF(-95.0, 0.0),
+			QPointF(-68.0, -68.0)
 		};
 	case calculators::AntennaType::FullWaveLoop:
 		return {
@@ -299,6 +312,16 @@ result_to_text(const calculators::AntennaCalculationResult &result, calculators:
 	if (result.loop_side_length_m > 0.0) {
 		text += QStringLiteral("Square/diamond loop side: %1\n")
 			.arg(QString::fromStdString(calculators::format_length(result.loop_side_length_m, length_unit)));
+	}
+
+	if (result.halo_diameter_m > 0.0) {
+		text += QStringLiteral("Halo diameter reference: %1\n")
+			.arg(QString::fromStdString(calculators::format_length(result.halo_diameter_m, length_unit)));
+	}
+
+	if (result.halo_gap_m > 0.0) {
+		text += QStringLiteral("Halo end-gap starting point: %1\n")
+			.arg(QString::fromStdString(calculators::format_length(result.halo_gap_m, length_unit)));
 	}
 
 	if (result.conductor_length_m > 0.0 && result.conductor_length_m != result.total_length_m) {
@@ -799,6 +822,7 @@ MainWindow::create_antenna_tab(QTabWidget *tabs)
 
 	antenna_type_box->addItem(QStringLiteral("Half-wave dipole"), static_cast<int>(calculators::AntennaType::HalfWaveDipole));
 	antenna_type_box->addItem(QStringLiteral("Folded dipole"), static_cast<int>(calculators::AntennaType::FoldedDipole));
+	antenna_type_box->addItem(QStringLiteral("Halo"), static_cast<int>(calculators::AntennaType::Halo));
 	antenna_type_box->addItem(QStringLiteral("Quarter-wave vertical"), static_cast<int>(calculators::AntennaType::QuarterWaveVertical));
 	antenna_type_box->addItem(QStringLiteral("End-fed half-wave"), static_cast<int>(calculators::AntennaType::EndFedHalfWave));
 	antenna_type_box->addItem(QStringLiteral("Full-wave loop"), static_cast<int>(calculators::AntennaType::FullWaveLoop));

@@ -22,7 +22,8 @@ enum class AntennaType {
 	InvertedVee,
 	RandomWire,
 	Yagi,
-	FoldedDipole
+	FoldedDipole,
+	Halo
 };
 
 enum class DesignMode {
@@ -51,6 +52,10 @@ struct AntennaCalculationResult {
 	double leg_length_ft = 0.0;
 	double loop_side_length_m = 0.0;
 	double loop_side_length_ft = 0.0;
+	double halo_diameter_m = 0.0;
+	double halo_diameter_ft = 0.0;
+	double halo_gap_m = 0.0;
+	double halo_gap_ft = 0.0;
 	double radiator_length_m = 0.0;
 	double radiator_length_ft = 0.0;
 	double shortening_factor = DEFAULT_WIRE_FACTOR;

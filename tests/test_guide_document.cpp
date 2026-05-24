@@ -306,6 +306,26 @@ test_folded_dipole_single_guide_has_folded_diagram()
 }
 
 void
+test_halo_single_guide_has_halo_diagram_and_dimensions()
+{
+	qantcal::calculators::AntennaCalculationInput input;
+
+	input.antenna_type = qantcal::calculators::AntennaType::Halo;
+	input.frequency_mhz = 144.2;
+
+	const qantcal::calculators::AntennaCalculationResult result =
+		qantcal::calculators::calculate_antenna(input);
+	const qantcal::guides::GuideDocument document =
+		qantcal::guides::create_guide_document(result, qantcal::calculators::LengthUnit::Metres, QStringLiteral("2m"));
+
+	assert(document.diagram_items.size() == 1);
+	assert(document.diagram_items[0].kind == QStringLiteral("halo"));
+	assert(document.diagram_items[0].points.size() == 8);
+	assert(document.dimensions_text.contains(QStringLiteral("Halo diameter reference")));
+	assert(document.dimensions_text.contains(QStringLiteral("Halo end-gap starting point")));
+}
+
+void
 test_lf_mf_materials_include_loading_and_counterpoise()
 {
 	const qantcal::guides::GuideDocument document =
@@ -490,6 +510,7 @@ main()
 	test_build_checklist_exists();
 	test_document_from_project();
 	test_folded_dipole_single_guide_has_folded_diagram();
+	test_halo_single_guide_has_halo_diagram_and_dimensions();
 	test_lf_mf_materials_include_loading_and_counterpoise();
 	test_lf_mf_warning_included();
 	test_multi_band_guidance_section();

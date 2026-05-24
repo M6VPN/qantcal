@@ -167,6 +167,22 @@ test_full_wave_loop()
 }
 
 void
+test_halo_half_wave_conductor()
+{
+	const qantcal::calculators::AntennaCalculationResult result =
+		calculate(qantcal::calculators::AntennaType::Halo, 144.2);
+	const double expected_conductor = expected_length(144.2, 0.5);
+	const double expected_gap = qantcal::calculators::wavelength_from_frequency_m(144.2) * 0.015;
+
+	assert(result.ok);
+	assert(near_value(result.total_length_m, expected_conductor, 0.000001));
+	assert(near_value(result.conductor_length_m, expected_conductor, 0.000001));
+	assert(near_value(result.halo_diameter_m, expected_conductor / 3.14159265358979323846, 0.000001));
+	assert(near_value(result.halo_gap_m, expected_gap, 0.000001));
+	assert(contains_text(result.matching_note, "half-wave dipole"));
+}
+
+void
 test_lf_vlf_vertical_warns()
 {
 	const qantcal::calculators::AntennaCalculationResult result =
@@ -482,6 +498,7 @@ main()
 	test_folded_dipole_equals_half_wave_starting_length();
 	test_formula_reference_bands();
 	test_full_wave_loop();
+	test_halo_half_wave_conductor();
 	test_lf_vlf_vertical_warns();
 	test_invalid_factor_above_one();
 	test_invalid_factor_below_minimum();

@@ -31,6 +31,18 @@ process_resize(qantcal::MainWindow &window, int width, int height)
 }
 
 void
+test_antenna_selector_contains_halo(const qantcal::MainWindow &window)
+{
+	const QList<QComboBox *> combo_boxes = window.findChildren<QComboBox *>();
+	bool found = false;
+
+	for (const QComboBox *combo_box : combo_boxes)
+		found = found || combo_box->findText(QStringLiteral("Halo")) >= 0;
+
+	assert(found);
+}
+
+void
 test_antenna_selector_contains_folded_dipole(const qantcal::MainWindow &window)
 {
 	const QList<QComboBox *> combo_boxes = window.findChildren<QComboBox *>();
@@ -50,6 +62,29 @@ test_folded_dipole_scene_uses_folded_path()
 
 	input.antenna_type = qantcal::calculators::AntennaType::FoldedDipole;
 	input.frequency_mhz = 7.1;
+
+	const qantcal::calculators::AntennaCalculationResult result =
+		qantcal::calculators::calculate_antenna(input);
+	scene.show_antenna_diagram(result, qantcal::calculators::LengthUnit::Metres);
+
+	int path_count = 0;
+	for (QGraphicsItem *item : scene.items()) {
+		if (dynamic_cast<QGraphicsPathItem *>(item) != nullptr)
+			++path_count;
+	}
+
+	assert(result.ok);
+	assert(path_count >= 1);
+}
+
+void
+test_halo_scene_uses_path()
+{
+	qantcal::design::AntennaDesignScene scene;
+	qantcal::calculators::AntennaCalculationInput input;
+
+	input.antenna_type = qantcal::calculators::AntennaType::Halo;
+	input.frequency_mhz = 144.2;
 
 	const qantcal::calculators::AntennaCalculationResult result =
 		qantcal::calculators::calculate_antenna(input);
@@ -169,10 +204,12 @@ main(int argc, char *argv[])
 	qantcal::MainWindow window;
 
 	test_folded_dipole_scene_uses_folded_path();
+	test_halo_scene_uses_path();
 	test_project_feedpoint_uses_descriptor_position();
 	test_russian_menu_translation_loads();
 	process_resize(window, 800, 600);
 	test_antenna_selector_contains_folded_dipole(window);
+	test_antenna_selector_contains_halo(window);
 	test_help_menu_is_final(window);
 	test_scroll_areas_are_present(window);
 	test_read_only_outputs_have_accessible_names(window);
@@ -180,6 +217,7 @@ main(int argc, char *argv[])
 
 	process_resize(window, 480, 720);
 	test_antenna_selector_contains_folded_dipole(window);
+	test_antenna_selector_contains_halo(window);
 	test_help_menu_is_final(window);
 	test_scroll_areas_are_present(window);
 	test_read_only_outputs_have_accessible_names(window);

@@ -15,6 +15,7 @@ constexpr double MIN_FREQUENCY_MHZ = 0.001;
 constexpr double MAX_FREQUENCY_MHZ = 300000.0;
 constexpr double MIN_LENGTH_M = 0.001;
 constexpr double MAX_LENGTH_M = 10000.0;
+constexpr double PI = 3.14159265358979323846;
 constexpr double LARGE_INSTALLATION_LENGTH_M = 80.0;
 constexpr double IMPRACTICAL_LENGTH_M = 250.0;
 constexpr double EFFECTIVELY_IMPOSSIBLE_LENGTH_M = 1000.0;
@@ -22,6 +23,7 @@ constexpr double TOLERANCE_DOMINATED_LENGTH_M = 0.05;
 constexpr double LF_VLF_FREQUENCY_MHZ = 0.1;
 constexpr double MICROWAVE_WARNING_FREQUENCY_MHZ = 1300.0;
 constexpr double RANDOM_WIRE_MULTIPLE_TOLERANCE = 0.08;
+constexpr double HALO_GAP_WAVELENGTH_RATIO = 0.015;
 
 double
 base_wave_ratio(AntennaType antenna_type)
@@ -29,6 +31,7 @@ base_wave_ratio(AntennaType antenna_type)
 	switch (antenna_type) {
 	case AntennaType::HalfWaveDipole:
 	case AntennaType::FoldedDipole:
+	case AntennaType::Halo:
 	case AntennaType::EndFedHalfWave:
 	case AntennaType::InvertedVee:
 		return 0.5;
@@ -97,6 +100,7 @@ counterpoise_note_for_type(AntennaType antenna_type)
 	case AntennaType::HalfWaveDipole:
 	case AntennaType::FoldedDipole:
 	case AntennaType::FullWaveLoop:
+	case AntennaType::Halo:
 	case AntennaType::InvertedVee:
 	case AntennaType::Yagi:
 		return "No separate radial system is calculated for this antenna type.";
@@ -114,6 +118,8 @@ matching_note_for_type(AntennaType antenna_type)
 		return "Feed-point impedance depends on height, angle, nearby objects, and feed arrangement.";
 	case AntennaType::FoldedDipole:
 		return "A two-wire folded dipole is often near 4 times the impedance of a simple dipole and normally needs balanced feed or a suitable transformer.";
+	case AntennaType::Halo:
+		return "A halo is a half-wave dipole bent into a near-circle. Feed and matching details, end-gap capacitance, mounting, and nearby objects affect tuning.";
 	case AntennaType::QuarterWaveVertical:
 		return "Matching depends strongly on the radial or counterpoise system and ground conditions.";
 	case AntennaType::EndFedHalfWave:
@@ -139,6 +145,7 @@ trimming_note_for_type(AntennaType antenna_type)
 		return "Do not treat this as a resonant cut length. Model and test the full matching and counterpoise system.";
 	case AntennaType::HalfWaveDipole:
 	case AntennaType::FoldedDipole:
+	case AntennaType::Halo:
 	case AntennaType::QuarterWaveVertical:
 	case AntennaType::EndFedHalfWave:
 	case AntennaType::FullWaveLoop:
@@ -170,6 +177,16 @@ populate_type_lengths(AntennaCalculationResult &result, AntennaType antenna_type
 		result.conductor_length_ft = metres_to_feet(result.conductor_length_m);
 		result.leg_length_m = length_m / 2.0;
 		result.leg_length_ft = metres_to_feet(result.leg_length_m);
+		break;
+	case AntennaType::Halo:
+		result.total_length_m = length_m;
+		result.total_length_ft = metres_to_feet(length_m);
+		result.conductor_length_m = length_m;
+		result.conductor_length_ft = metres_to_feet(length_m);
+		result.halo_diameter_m = length_m / PI;
+		result.halo_diameter_ft = metres_to_feet(result.halo_diameter_m);
+		result.halo_gap_m = result.wavelength_m * HALO_GAP_WAVELENGTH_RATIO;
+		result.halo_gap_ft = metres_to_feet(result.halo_gap_m);
 		break;
 	case AntennaType::QuarterWaveVertical:
 		result.total_length_m = length_m;
@@ -300,6 +317,8 @@ antenna_type_label(AntennaType antenna_type)
 		return "Half-wave dipole";
 	case AntennaType::FoldedDipole:
 		return "Folded dipole";
+	case AntennaType::Halo:
+		return "Halo";
 	case AntennaType::QuarterWaveVertical:
 		return "Quarter-wave vertical";
 	case AntennaType::EndFedHalfWave:
