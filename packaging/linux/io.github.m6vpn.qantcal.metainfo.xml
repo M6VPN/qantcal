@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- qantcal - Developed by M6VPN (M6VPN@tuta.com) -->
+<!-- packaging/linux/io.github.m6vpn.qantcal.metainfo.xml -->
+<component type="desktop-application">
+	<id>io.github.m6vpn.qantcal</id>
+	<metadata_license>CC0-1.0</metadata_license>
+	<project_license>ISC</project_license>
+	<name>qantcal</name>
+	<summary>Amateur radio antenna calculator and build guide generator</summary>
+	<description>
+		<p>qantcal is a Qt6 desktop application for amateur radio and RF antenna calculations, design diagrams, and printable construction guides.</p>
+		<p>The first alpha provides practical starting dimensions, reference warnings, project files, and PDF guide export.</p>
+	</description>
+	<launchable type="desktop-id">qantcal.desktop</launchable>
+	<url type="homepage">https://github.com/M6VPN/qantcal</url>
+	<developer id="io.github.m6vpn">
+		<name>M6VPN</name>
+	</developer>
+	<releases>
+		<release version="0.1.0-alpha.1" date="2026-05-24"/>
+	</releases>
+	<content_rating type="oars-1.1"/>
+</component>

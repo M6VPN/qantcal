@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- qantcal - Developed by M6VPN (M6VPN@tuta.com) -->
+<!-- packaging/linux/qantcal.svg -->
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-label="qantcal icon">
+	<rect width="256" height="256" rx="32" fill="#16212f"/>
+	<circle cx="128" cy="128" r="84" fill="none" stroke="#3fb8ff" stroke-width="10"/>
+	<path d="M48 128h160" fill="none" stroke="#f4f7fb" stroke-width="12" stroke-linecap="round"/>
+	<path d="M128 128l-52 52M128 128l52 52M128 128V52" fill="none" stroke="#f4f7fb" stroke-width="10" stroke-linecap="round"/>
+	<circle cx="128" cy="128" r="13" fill="#ff6b4a"/>
+	<path d="M82 66c14-12 30-18 46-18s32 6 46 18" fill="none" stroke="#9be564" stroke-width="9" stroke-linecap="round"/>
+</svg>

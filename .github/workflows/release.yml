@@ -1,0 +1,288 @@
+# qantcal - Developed by M6VPN (M6VPN@tuta.com)
+# .github/workflows/release.yml
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag
+        required: true
+        default: v0.1.0-alpha.1
+
+permissions:
+  contents: write
+
+env:
+  RELEASE_VERSION: 0.1.0-alpha.1
+  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+
+jobs:
+  linux-appimage:
+    name: AppImage ${{ matrix.name }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: x86_64
+            image: ubuntu:22.04
+            platform: linux/amd64
+            appimage_arch: x86_64
+            label: 0.1.0-alpha.1-linux-x86_64
+          - name: aarch64
+            image: ubuntu:22.04
+            platform: linux/arm64
+            appimage_arch: aarch64
+            label: 0.1.0-alpha.1-linux-aarch64
+          - name: armv7l
+            image: ubuntu:22.04
+            platform: linux/arm/v7
+            appimage_arch: armhf
+            label: 0.1.0-alpha.1-linux-armv7l
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+        with:
+          platforms: all
+
+      - name: Build AppImage
+        run: |
+          mkdir -p release-artifacts
+          ./scripts/package-linux-container.sh \
+            "${{ matrix.image }}" \
+            "${{ matrix.platform }}" \
+            APPIMAGE \
+            "${{ matrix.label }}" \
+            release-artifacts \
+            "${{ matrix.appimage_arch }}"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: appimage-${{ matrix.name }}
+          path: release-artifacts/*
+          if-no-files-found: error
+
+  linux-deb:
+    name: DEB ${{ matrix.name }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: ubuntu-24.04-amd64
+            image: ubuntu:24.04
+            platform: linux/amd64
+            label: 0.1.0-alpha.1-ubuntu24.04-amd64
+          - name: ubuntu-24.04-arm64
+            image: ubuntu:24.04
+            platform: linux/arm64
+            label: 0.1.0-alpha.1-ubuntu24.04-arm64
+          - name: ubuntu-24.04-armhf
+            image: ubuntu:24.04
+            platform: linux/arm/v7
+            label: 0.1.0-alpha.1-ubuntu24.04-armhf
+          - name: debian-trixie-amd64
+            image: debian:trixie
+            platform: linux/amd64
+            label: 0.1.0-alpha.1-debian-trixie-amd64
+          - name: debian-trixie-arm64
+            image: debian:trixie
+            platform: linux/arm64
+            label: 0.1.0-alpha.1-debian-trixie-arm64
+          - name: debian-trixie-armhf
+            image: debian:trixie
+            platform: linux/arm/v7
+            label: 0.1.0-alpha.1-debian-trixie-armhf
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+        with:
+          platforms: all
+
+      - name: Build DEB
+        run: |
+          mkdir -p release-artifacts
+          ./scripts/package-linux-container.sh \
+            "${{ matrix.image }}" \
+            "${{ matrix.platform }}" \
+            DEB \
+            "${{ matrix.label }}" \
+            release-artifacts
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: deb-${{ matrix.name }}
+          path: release-artifacts/*
+          if-no-files-found: error
+
+  linux-rpm:
+    name: RPM ${{ matrix.name }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: fedora-latest-x86_64
+            image: fedora:latest
+            platform: linux/amd64
+            label: 0.1.0-alpha.1-fedora-latest-x86_64
+          - name: fedora-latest-aarch64
+            image: fedora:latest
+            platform: linux/arm64
+            label: 0.1.0-alpha.1-fedora-latest-aarch64
+          - name: rocky-latest-x86_64
+            image: rockylinux/rockylinux:latest
+            platform: linux/amd64
+            label: 0.1.0-alpha.1-rocky-latest-x86_64
+          - name: rocky-latest-aarch64
+            image: rockylinux/rockylinux:latest
+            platform: linux/arm64
+            label: 0.1.0-alpha.1-rocky-latest-aarch64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+        with:
+          platforms: all
+
+      - name: Build RPM
+        run: |
+          mkdir -p release-artifacts
+          ./scripts/package-linux-container.sh \
+            "${{ matrix.image }}" \
+            "${{ matrix.platform }}" \
+            RPM \
+            "${{ matrix.label }}" \
+            release-artifacts
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: rpm-${{ matrix.name }}
+          path: release-artifacts/*
+          if-no-files-found: error
+
+  windows-portable:
+    name: Windows ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: msys2 {0}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: x64
+            runner: windows-latest
+            msystem: UCRT64
+            label: 0.1.0-alpha.1-windows-x64
+            packages: >-
+              mingw-w64-ucrt-x86_64-cmake
+              mingw-w64-ucrt-x86_64-gcc
+              mingw-w64-ucrt-x86_64-ninja
+              mingw-w64-ucrt-x86_64-qt6-base
+              mingw-w64-ucrt-x86_64-qt6-tools
+          - name: arm64
+            runner: windows-11-arm
+            msystem: CLANGARM64
+            label: 0.1.0-alpha.1-windows-arm64
+            packages: >-
+              mingw-w64-clang-aarch64-cmake
+              mingw-w64-clang-aarch64-clang
+              mingw-w64-clang-aarch64-ninja
+              mingw-w64-clang-aarch64-qt6-base
+              mingw-w64-clang-aarch64-qt6-tools
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install MSYS2 dependencies
+        uses: msys2/setup-msys2@v2.31.1
+        with:
+          msystem: ${{ matrix.msystem }}
+          update: true
+          install: ${{ matrix.packages }}
+
+      - name: Build portable ZIP
+        run: |
+          mkdir -p release-artifacts
+          ./scripts/package-windows-msys2.sh "${{ matrix.label }}" release-artifacts
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-${{ matrix.name }}
+          path: release-artifacts/*
+          if-no-files-found: error
+
+  publish-draft:
+    name: Draft prerelease
+    runs-on: ubuntu-24.04
+    needs:
+      - linux-appimage
+      - linux-deb
+      - linux-rpm
+      - windows-portable
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: release-artifacts
+          merge-multiple: true
+
+      - name: Write release notes
+        run: |
+          cat > release-notes.md <<'NOTES'
+          # qantcal 0.1.0 alpha 1
+
+          First alpha release for qantcal.
+
+          ## Artifacts
+
+          - Linux AppImage: x86_64, aarch64, armv7l
+          - Debian-family packages: Debian trixie and Ubuntu 24.04 for amd64, arm64, armhf
+          - RPM packages: Fedora latest and Rocky latest for x86_64 and aarch64
+          - Windows portable ZIP: x64 and arm64
+
+          ## Alpha notes
+
+          - Packages are unsigned.
+          - Armbian users should use the Debian or Ubuntu package matching their base distribution and architecture.
+          - The RF calculators provide starting dimensions and advisory notes, not certified build specifications.
+          - Report packaging issues at https://github.com/M6VPN/qantcal/issues.
+          NOTES
+
+      - name: Create or update draft prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          find release-artifacts -maxdepth 2 -type f | sort
+          if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
+            gh release upload "${RELEASE_TAG}" release-artifacts/* --clobber
+            gh release edit "${RELEASE_TAG}" --draft=true --prerelease --title "qantcal ${RELEASE_VERSION}" --notes-file release-notes.md
+          else
+            gh release create "${RELEASE_TAG}" release-artifacts/* --draft --prerelease --title "qantcal ${RELEASE_VERSION}" --notes-file release-notes.md
+          fi

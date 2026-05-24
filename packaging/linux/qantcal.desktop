@@ -1,0 +1,13 @@
+# qantcal - Developed by M6VPN (M6VPN@tuta.com)
+# packaging/linux/qantcal.desktop
+
+[Desktop Entry]
+Type=Application
+Name=qantcal
+GenericName=Antenna Calculator
+Comment=Calculate amateur radio antenna dimensions and print build guides
+Exec=qantcal
+Icon=qantcal
+Terminal=false
+Categories=Network;HamRadio;Qt;
+Keywords=radio;antenna;amateur;ham;RF;calculator;

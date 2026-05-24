@@ -20,19 +20,19 @@ qantcal uses C++17, CMake, and Qt6 Widgets. Exact Qt package names vary by distr
 
 ```bash
 sudo apt update
-sudo apt install build-essential cmake qt6-base-dev qt6-base-dev-tools
+sudo apt install build-essential cmake qt6-base-dev qt6-base-dev-tools qt6-tools-dev-tools
 ```
 
 ## Fedora
 
 ```bash
-sudo dnf install gcc-c++ cmake qt6-qtbase-devel qt6-qtbase-devel-tools
+sudo dnf install gcc-c++ cmake qt6-qtbase-devel qt6-qttools-devel
 ```
 
 ## Arch Linux
 
 ```bash
-sudo pacman -S --needed base-devel cmake qt6-base
+sudo pacman -S --needed base-devel cmake qt6-base qt6-tools
 ```
 
 ## OpenBSD
