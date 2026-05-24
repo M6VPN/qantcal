@@ -253,12 +253,104 @@ test_broadcast_warning_included()
 }
 
 void
+test_build_checklist_exists()
+{
+	const qantcal::guides::GuideDocument document =
+		qantcal::guides::create_project_guide_document(sample_project(), qantcal::calculators::LengthUnit::Metres);
+	bool found_checklist = false;
+
+	for (const qantcal::guides::GuideSection &section : document.sections) {
+		found_checklist = found_checklist
+			|| (section.title == QStringLiteral("Build checklist")
+				&& section.body_text.contains(QStringLiteral("Cut conductors slightly long")));
+	}
+
+	assert(found_checklist);
+}
+
+void
+test_lf_mf_materials_include_loading_and_counterpoise()
+{
+	const qantcal::guides::GuideDocument document =
+		qantcal::guides::create_project_guide_document(sample_lf_mf_project(), qantcal::calculators::LengthUnit::Metres);
+	bool found_loading = false;
+	bool found_counterpoise = false;
+	bool found_voltage = false;
+
+	for (const qantcal::guides::GuideSection &section : document.sections) {
+		if (section.title == QStringLiteral("Material list")) {
+			for (const qantcal::guides::GuideTableRow &row : section.table_rows) {
+				found_loading = found_loading || row.cells.join(QStringLiteral(" ")).contains(QStringLiteral("Loading coil"));
+				found_counterpoise = found_counterpoise || row.cells.join(QStringLiteral(" ")).contains(QStringLiteral("counterpoise"));
+			}
+		}
+		if (section.title == QStringLiteral("Build checklist"))
+			found_voltage = section.body_text.contains(QStringLiteral("high-voltage spacing"));
+	}
+
+	assert(found_loading);
+	assert(found_counterpoise);
+	assert(found_voltage);
+}
+
+void
 test_unit_formatting()
 {
 	const qantcal::guides::GuideDocument document =
 		qantcal::guides::create_project_guide_document(sample_project(), qantcal::calculators::LengthUnit::Centimetres);
 
 	assert(document.dimensions_text.contains(QStringLiteral("2005.70 cm")));
+}
+
+void
+test_project_material_list_contains_elements()
+{
+	const qantcal::guides::GuideDocument document =
+		qantcal::guides::create_project_guide_document(sample_project(), qantcal::calculators::LengthUnit::Metres);
+	bool found_materials = false;
+	int element_rows = 0;
+
+	for (const qantcal::guides::GuideSection &section : document.sections) {
+		if (section.title != QStringLiteral("Material list"))
+			continue;
+		found_materials = true;
+		for (const qantcal::guides::GuideTableRow &row : section.table_rows) {
+			if (row.cells.join(QStringLiteral(" ")).contains(QStringLiteral("40m"))
+				|| row.cells.join(QStringLiteral(" ")).contains(QStringLiteral("20m"))) {
+				++element_rows;
+			}
+		}
+	}
+
+	assert(found_materials);
+	assert(element_rows >= 2);
+}
+
+void
+test_single_guide_material_list_contains_wire_length()
+{
+	qantcal::calculators::AntennaCalculationInput input;
+
+	input.antenna_type = qantcal::calculators::AntennaType::HalfWaveDipole;
+	input.frequency_mhz = 7.1;
+
+	const qantcal::calculators::AntennaCalculationResult result =
+		qantcal::calculators::calculate_antenna(input);
+	const qantcal::guides::GuideDocument document =
+		qantcal::guides::create_guide_document(result, qantcal::calculators::LengthUnit::Metres, QStringLiteral("40m"));
+	bool found_wire = false;
+
+	for (const qantcal::guides::GuideSection &section : document.sections) {
+		if (section.title != QStringLiteral("Material list"))
+			continue;
+		for (const qantcal::guides::GuideTableRow &row : section.table_rows) {
+			found_wire = found_wire
+				|| (row.cells.join(QStringLiteral(" ")).contains(QStringLiteral("Antenna wire"))
+					&& row.cells.join(QStringLiteral(" ")).contains(QStringLiteral("20.057 m")));
+		}
+	}
+
+	assert(found_wire);
 }
 
 void
@@ -278,6 +370,28 @@ test_yagi_document_contains_yagi_sections()
 	}
 
 	assert(found_yagi_notes);
+}
+
+void
+test_yagi_material_list_contains_elements_and_boom()
+{
+	const qantcal::guides::GuideDocument document =
+		qantcal::guides::create_project_guide_document(sample_yagi_project(), qantcal::calculators::LengthUnit::Centimetres);
+	bool found_reflector = false;
+	bool found_boom = false;
+
+	for (const qantcal::guides::GuideSection &section : document.sections) {
+		if (section.title != QStringLiteral("Material list"))
+			continue;
+		for (const qantcal::guides::GuideTableRow &row : section.table_rows) {
+			const QString row_text = row.cells.join(QStringLiteral(" "));
+			found_reflector = found_reflector || row_text.contains(QStringLiteral("Reflector"));
+			found_boom = found_boom || row_text.contains(QStringLiteral("Boom and element mounts"));
+		}
+	}
+
+	assert(found_reflector);
+	assert(found_boom);
 }
 
 void
@@ -303,14 +417,19 @@ main()
 {
 	test_assumptions_and_safety_notes();
 	test_broadcast_warning_included();
+	test_build_checklist_exists();
 	test_document_from_project();
+	test_lf_mf_materials_include_loading_and_counterpoise();
 	test_lf_mf_warning_included();
 	test_multi_band_rows();
 	test_propagation_warning_included();
+	test_project_material_list_contains_elements();
+	test_single_guide_material_list_contains_wire_length();
 	test_target_band_frequency_data();
 	test_unit_formatting();
 	test_yagi_document_contains_yagi_sections();
 	test_yagi_document_contains_starting_dimension_limits();
+	test_yagi_material_list_contains_elements_and_boom();
 
 	return 0;
 }

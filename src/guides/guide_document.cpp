@@ -44,6 +44,131 @@ dimensions_section(const QStringList &dimensions)
 }
 
 void
+append_material_row(GuideSection &section, const QString &item, const QString &quantity, const QString &notes)
+{
+	if (quantity.isEmpty() && notes.isEmpty())
+		return;
+
+	GuideTableRow row;
+
+	row.cells = QStringList{ item, quantity, notes };
+	section.table_rows.append(row);
+}
+
+GuideSection
+build_checklist_section(const QStringList &items)
+{
+	return make_text_section(
+		QStringLiteral("Build checklist"),
+		items.join(QStringLiteral("\n"))
+	);
+}
+
+QString
+formatted_length(double metres, calculators::LengthUnit length_unit)
+{
+	return QString::fromStdString(calculators::format_length(metres, length_unit));
+}
+
+void
+append_single_build_sheet_sections(
+	GuideDocument &document,
+	const calculators::AntennaCalculationResult &result,
+	calculators::LengthUnit length_unit
+)
+{
+	GuideSection materials;
+	QStringList checklist;
+
+	materials.title = QStringLiteral("Material list");
+	append_material_row(materials, QStringLiteral("Antenna wire"), formatted_length(result.total_length_m, length_unit), QStringLiteral("Cut long where practical, then trim while measuring."));
+	append_material_row(materials, QStringLiteral("Dipole legs"), formatted_length(result.leg_length_m, length_unit), QStringLiteral("Two equal legs from the calculated total length."));
+	append_material_row(materials, QStringLiteral("Vertical radiator"), formatted_length(result.radiator_length_m, length_unit), QStringLiteral("Use with a radial or counterpoise system."));
+	append_material_row(materials, QStringLiteral("Feed or matching hardware"), QStringLiteral("as required"), QString::fromStdString(result.matching_note));
+	append_material_row(materials, QStringLiteral("Counterpoise or radials"), QStringLiteral("as required"), QString::fromStdString(result.counterpoise_note));
+	append_material_row(materials, QStringLiteral("Supports and insulators"), QStringLiteral("site dependent"), QStringLiteral("Use safe supports, end insulators, strain relief, and weatherproofing."));
+	append_material_row(materials, QStringLiteral("Test equipment"), QStringLiteral("1"), QStringLiteral("Use an analyser, VNA, or SWR meter to verify and trim."));
+	if (!materials.table_rows.isEmpty())
+		document.sections.append(materials);
+
+	checklist << QStringLiteral("Confirm band, frequency, and length unit before cutting material.");
+	checklist << QStringLiteral("Cut conductors slightly long where practical.");
+	checklist << QStringLiteral("Install feedpoint, strain relief, supports, and weatherproofing safely.");
+	checklist << QStringLiteral("Measure at low power before normal use.");
+	checklist << QStringLiteral("Trim gradually and re-measure after each change.");
+	document.sections.append(build_checklist_section(checklist));
+}
+
+void
+append_lf_mf_material_rows(GuideSection &materials, const project::LfMfProjectDesign &design, calculators::LengthUnit length_unit)
+{
+	if (!design.enabled)
+		return;
+
+	append_material_row(materials, QStringLiteral("LF/MF vertical section"), formatted_length(design.vertical_height_metres, length_unit), QStringLiteral("Electrically short antenna section."));
+	append_material_row(materials, QStringLiteral("LF/MF horizontal/top wire"), formatted_length(design.horizontal_or_top_length_metres, length_unit), QStringLiteral("Top loading or horizontal section."));
+	if (design.has_calculated_loading_inductance) {
+		append_material_row(
+			materials,
+			QStringLiteral("Loading coil"),
+			QStringLiteral("%1 uH").arg(design.calculated_loading_inductance_uh, 0, 'f', 2),
+			QStringLiteral("Approximate ideal inductance only; real coil Q and voltage stress are not modelled.")
+		);
+	}
+	append_material_row(materials, QStringLiteral("Ground or counterpoise"), QStringLiteral("site dependent"), QStringLiteral("Ground/counterpoise loss can dominate LF/MF performance."));
+}
+
+void
+append_project_build_sheet_sections(
+	GuideDocument &document,
+	const project::AntennaProject &project,
+	calculators::LengthUnit length_unit
+)
+{
+	GuideSection materials;
+	QStringList checklist;
+
+	materials.title = QStringLiteral("Material list");
+	for (const project::AntennaElement &element : project.elements) {
+		append_material_row(
+			materials,
+			project.antenna_type == calculators::AntennaType::Yagi ? element.label : QStringLiteral("Wire or element"),
+			formatted_length(element.length_metres, length_unit),
+			QStringLiteral("%1 %2 MHz %3")
+				.arg(element.label)
+				.arg(element.frequency_mhz, 0, 'f', 3)
+				.arg(element.role)
+		);
+	}
+	if (project.antenna_type == calculators::AntennaType::Yagi) {
+		append_material_row(materials, QStringLiteral("Boom and element mounts"), QStringLiteral("1 set"), QStringLiteral("Boom length, clamps, insulation, and matching hardware are construction-specific."));
+		append_material_row(materials, QStringLiteral("Feed choke or balun"), QStringLiteral("1"), QStringLiteral("Use a choke or balun appropriate to the feed arrangement."));
+	} else {
+		append_material_row(materials, QStringLiteral("Feed or matching hardware"), QStringLiteral("as required"), QStringLiteral("Balun, transformer, tuner, or matching network depends on antenna type and feed arrangement."));
+		append_material_row(materials, QStringLiteral("Counterpoise, radials, or return path"), QStringLiteral("as required"), QStringLiteral("Required for vertical, end-fed, random-wire, and many portable installations."));
+	}
+	append_lf_mf_material_rows(materials, project.lf_mf_design, length_unit);
+	append_material_row(materials, QStringLiteral("Supports and insulators"), QStringLiteral("site dependent"), QStringLiteral("Use safe supports, strain relief, weatherproofing, and end insulators."));
+	append_material_row(materials, QStringLiteral("Test equipment"), QStringLiteral("1"), QStringLiteral("Use an analyser, VNA, or SWR meter to verify and trim."));
+	if (!materials.table_rows.isEmpty())
+		document.sections.append(materials);
+
+	checklist << QStringLiteral("Confirm target bands and calculated dimensions before cutting material.");
+	checklist << QStringLiteral("Cut conductors slightly long where practical.");
+	if (project.antenna_type == calculators::AntennaType::Yagi) {
+		checklist << QStringLiteral("Mark boom positions, element order, and feedpoint before drilling or clamping.");
+		checklist << QStringLiteral("Check element alignment, spacing, and feed arrangement before testing.");
+	}
+	if (project.lf_mf_design.enabled) {
+		checklist << QStringLiteral("Install loading coil, ground or counterpoise, and top loading with high-voltage spacing in mind.");
+		checklist << QStringLiteral("Expect narrow bandwidth and re-check tuning after weather or layout changes.");
+	}
+	checklist << QStringLiteral("Install supports, strain relief, and weatherproofing safely.");
+	checklist << QStringLiteral("Measure at low power, then trim or adjust gradually.");
+	document.sections.append(build_checklist_section(checklist));
+}
+
+void
 append_standard_sections(GuideDocument &document)
 {
 	document.sections.append(make_text_section(
@@ -239,6 +364,7 @@ create_guide_document(
 			append_band_reference_section(document, band);
 	}
 	document.sections.append(dimensions_section(dimensions));
+	append_single_build_sheet_sections(document, result, length_unit);
 	document.sections.append(make_text_section(QStringLiteral("Diagram"), QStringLiteral("Diagram snapshot is rendered from the current design canvas.")));
 	append_standard_sections(document);
 
@@ -327,6 +453,7 @@ create_project_guide_document(
 			append_band_reference_section(document, band);
 	}
 	document.sections.append(dimensions_section(dimensions));
+	append_project_build_sheet_sections(document, project, length_unit);
 	if (project.antenna_type == calculators::AntennaType::Yagi) {
 		QString body = QStringLiteral("Dimensions are starting points. Build elements slightly long where practical and trim while measuring. Driven element feed and matching method is not designed in this pass. Use a balun or choke appropriate to the feed arrangement. Check SWR with an analyser or suitable meter at low power first. Mounting boom and element clamps can affect tuning.");
 
