@@ -69,6 +69,10 @@ add_executable(test_mode_reference
 	test_mode_reference.cpp
 )
 
+add_executable(test_multi_band_guidance
+	test_multi_band_guidance.cpp
+)
+
 add_executable(test_propagation_notes
 	test_propagation_notes.cpp
 )
@@ -186,6 +190,11 @@ target_link_libraries(test_matching_network_calculator
 )
 
 target_link_libraries(test_mode_reference
+	PRIVATE
+		qantcal_core
+)
+
+target_link_libraries(test_multi_band_guidance
 	PRIVATE
 		qantcal_core
 )
@@ -321,6 +330,11 @@ add_test(
 )
 
 add_test(
+	NAME test_multi_band_guidance
+	COMMAND test_multi_band_guidance
+)
+
+add_test(
 	NAME test_propagation_notes
 	COMMAND test_propagation_notes
 )
@@ -383,6 +397,7 @@ set_tests_properties(
 	test_loading_coil_calculator
 	test_matching_network_calculator
 	test_mode_reference
+	test_multi_band_guidance
 	test_propagation_notes
 	test_radio_horizon_calculator
 	test_reach_estimator

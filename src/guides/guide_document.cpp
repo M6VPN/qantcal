@@ -5,6 +5,7 @@
 
 #include "calculators/rf_units.h"
 #include "calculators/yagi_calculator.h"
+#include "project/multi_band_guidance.h"
 #include "reference/band_reference.h"
 #include "reference/mode_reference.h"
 #include "reference/propagation_notes.h"
@@ -411,7 +412,10 @@ create_project_guide_document(
 
 	if (!project.notes.isEmpty())
 		notes << project.notes;
-	notes << QStringLiteral("Multi-band physical interaction is future work. Current targets are calculated independently.");
+	const qantcal::project::MultiBandGuidance guidance = qantcal::project::create_multi_band_guidance(project);
+	const QString guidance_text = qantcal::project::multi_band_guidance_text(guidance);
+	if (!guidance_text.isEmpty())
+		notes << guidance_text;
 
 	document.dimensions_text = dimensions.join(QStringLiteral("\n"));
 	document.notes_text = notes.join(QStringLiteral("\n"));
@@ -447,6 +451,12 @@ create_project_guide_document(
 			notes << band.warning;
 	}
 	document.sections.append(targets_section);
+	if (!guidance_text.isEmpty()) {
+		document.sections.append(make_text_section(
+			QStringLiteral("Multi-band guidance"),
+			guidance_text
+		));
+	}
 	for (const project::AntennaTarget &target : project.targets) {
 		reference::BandReference band;
 		if (target.enabled && reference::band_reference_by_name(target.band_name, band))

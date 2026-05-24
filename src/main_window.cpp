@@ -17,6 +17,7 @@
 #include "design/antenna_design_view.h"
 #include "guides/guide_document.h"
 #include "guides/guide_renderer.h"
+#include "project/multi_band_guidance.h"
 #include "project/project_file_io.h"
 #include "reference/band_reference.h"
 #include "reference/lf_mf_reference.h"
@@ -1531,7 +1532,8 @@ MainWindow::recalculate_targets()
 
 	update_target_list();
 	design_scene->show_project_diagram(current_project, current_length_unit);
-	result_text->append(QStringLiteral("\nMulti-band note: each target is calculated independently. Fan dipole spacing, traps, common feedpoint impedance, interaction, and NEC modelling are future work."));
+	const project::MultiBandGuidance guidance = project::create_multi_band_guidance(current_project);
+	result_text->append(QStringLiteral("\nMulti-band guidance:\n%1").arg(project::multi_band_guidance_text(guidance)));
 	mark_project_dirty();
 }
 

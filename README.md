@@ -29,6 +29,7 @@ Progress:
 - first-pass Yagi starting dimensions for 2 to 10 elements
 - basic PDF export
 - printable PDF export with project sections, assumptions, and safety notes
+- multi-band target guidance for fan dipoles, traps, common feedpoint caveats, and independent target calculations
 - RF helper calculators for air-core coils, RF chokes, L-network matching, LC resonance, SWR/reflected power, coax loss, and radio horizon
 - amateur band, broadcast/reference band, and cautious propagation notes
 - LF/MF antenna guidance for full-size references, loaded verticals, top-loaded antennas, and receive-only compact antennas
@@ -47,7 +48,7 @@ Progress:
 
 - antenna calculators for common wire and vertical antennas
 - reverse length-to-frequency calculators
-- multi-band design support
+- multi-band design support beyond advisory target guidance
 - a diagram editor for antenna layouts and printable build sheets
 - printable guides and PDF exports
 - RF calculators for traps, chokes, impedance helpers, and link estimates

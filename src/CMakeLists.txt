@@ -40,6 +40,8 @@ add_library(qantcal_core
 	guides/guide_section.h
 	project/antenna_project.cpp
 	project/antenna_project.h
+	project/multi_band_guidance.cpp
+	project/multi_band_guidance.h
 	project/project_file_io.cpp
 	project/project_file_io.h
 	project/project_serializer.cpp

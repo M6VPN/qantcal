@@ -202,6 +202,25 @@ test_multi_band_rows()
 }
 
 void
+test_multi_band_guidance_section()
+{
+	const qantcal::guides::GuideDocument document =
+		qantcal::guides::create_project_guide_document(sample_project(), qantcal::calculators::LengthUnit::Metres);
+	bool found_guidance = false;
+
+	for (const qantcal::guides::GuideSection &section : document.sections) {
+		if (section.title == QStringLiteral("Multi-band guidance")) {
+			found_guidance = true;
+			assert(section.body_text.contains(QStringLiteral("Fan dipoles")));
+			assert(section.body_text.contains(QStringLiteral("Trap antennas")));
+			assert(section.body_text.contains(QStringLiteral("Common feedpoint")));
+		}
+	}
+
+	assert(found_guidance);
+}
+
+void
 test_target_band_frequency_data()
 {
 	const qantcal::guides::GuideDocument document =
@@ -421,6 +440,7 @@ main()
 	test_document_from_project();
 	test_lf_mf_materials_include_loading_and_counterpoise();
 	test_lf_mf_warning_included();
+	test_multi_band_guidance_section();
 	test_multi_band_rows();
 	test_propagation_warning_included();
 	test_project_material_list_contains_elements();
