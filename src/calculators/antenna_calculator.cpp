@@ -21,6 +21,7 @@ constexpr double EFFECTIVELY_IMPOSSIBLE_LENGTH_M = 1000.0;
 constexpr double TOLERANCE_DOMINATED_LENGTH_M = 0.05;
 constexpr double LF_VLF_FREQUENCY_MHZ = 0.1;
 constexpr double MICROWAVE_WARNING_FREQUENCY_MHZ = 1300.0;
+constexpr double RANDOM_WIRE_MULTIPLE_TOLERANCE = 0.08;
 
 double
 base_wave_ratio(AntennaType antenna_type)
@@ -114,7 +115,7 @@ matching_note_for_type(AntennaType antenna_type)
 	case AntennaType::FullWaveLoop:
 		return "Loop impedance depends on shape, height, feed point, and surroundings.";
 	case AntennaType::RandomWire:
-		return "Random-wire operation needs tuner and counterpoise modelling before useful length guidance can be claimed.";
+		return "Random-wire operation normally needs an ATU, tuner, or matching network. Feed impedance depends on wire length, frequency, counterpoise, feedline, height, and surroundings.";
 	case AntennaType::Yagi:
 		return "Yagi driven element matching is not designed by the simple wire calculator.";
 	}
@@ -196,6 +197,69 @@ append_practical_warnings(AntennaCalculationResult &result)
 		result.warnings.push_back("Simple wire formulas are poor guidance for microwave-style construction and feed geometry.");
 }
 
+void
+append_random_wire_frequency_guidance(AntennaCalculationResult &result)
+{
+	result.warnings.push_back("Random-wire guidance does not calculate a resonant cut length.");
+	result.warnings.push_back("Choose a physical length based on the available site, tuner range, counterpoise, supports, and measured behaviour.");
+}
+
+void
+append_random_wire_length_guidance(AntennaCalculationResult &result, bool check_half_wave_multiple)
+{
+	if (result.wavelength_m <= 0.0 || result.total_length_m <= 0.0)
+		return;
+
+	const double half_wave_m = result.wavelength_m / 2.0;
+	const double half_wave_multiple = result.total_length_m / half_wave_m;
+	const double nearest_multiple = std::round(half_wave_multiple);
+
+	result.warnings.push_back("Random-wire guidance treats the supplied length as a physical wire length, not a resonant design.");
+	if (check_half_wave_multiple && nearest_multiple >= 1.0 && std::fabs(half_wave_multiple - nearest_multiple) <= RANDOM_WIRE_MULTIPLE_TOLERANCE)
+		result.warnings.push_back("Supplied length is close to a half-wave multiple at the reference frequency; tuner matching can become difficult.");
+}
+
+AntennaCalculationResult
+calculate_random_wire(const AntennaCalculationInput &input)
+{
+	AntennaCalculationResult result;
+
+	result.ok = true;
+	result.antenna_type = input.antenna_type;
+	result.shortening_factor = input.shortening_factor;
+	populate_notes(result);
+
+	if (input.design_mode == DesignMode::FrequencyToLength) {
+		if (!is_reasonable_frequency(input.frequency_mhz))
+			return invalid_result(input, "Frequency must be positive and within the supported scaffold range.");
+
+		result.frequency_mhz = input.frequency_mhz;
+		result.wavelength_m = wavelength_from_frequency_m(input.frequency_mhz);
+		append_random_wire_frequency_guidance(result);
+		append_practical_warnings(result);
+		return result;
+	}
+
+	if (!is_reasonable_length(input.length_m))
+		return invalid_result(input, "Length must be positive and within the supported scaffold range.");
+
+	const bool has_reference_frequency = is_reasonable_frequency(input.frequency_mhz);
+	const double reference_wavelength_m = has_reference_frequency
+		? wavelength_from_frequency_m(input.frequency_mhz)
+		: input.length_m * 2.0;
+
+	result.total_length_m = input.length_m;
+	result.total_length_ft = metres_to_feet(input.length_m);
+	result.frequency_mhz = has_reference_frequency
+		? input.frequency_mhz
+		: frequency_from_wavelength_mhz(reference_wavelength_m);
+	result.wavelength_m = reference_wavelength_m;
+	append_random_wire_length_guidance(result, has_reference_frequency);
+	append_practical_warnings(result);
+
+	return result;
+}
+
 }
 
 const char *
@@ -230,7 +294,7 @@ calculate_antenna(const AntennaCalculationInput &input)
 		return invalid_result(input, "Shortening factor must be between 0.50 and 1.00.");
 
 	if (input.antenna_type == AntennaType::RandomWire)
-		return invalid_result(input, "Random-wire resonance is not implemented. Matching and counterpoise modelling are needed first.");
+		return calculate_random_wire(input);
 	if (input.antenna_type == AntennaType::Yagi)
 		return invalid_result(input, "Use the Yagi designer for Yagi starting dimensions.");
 

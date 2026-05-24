@@ -45,6 +45,12 @@ has_warning(const qantcal::calculators::AntennaCalculationResult &result, const 
 	return false;
 }
 
+bool
+contains_text(const std::string &text, const std::string &needle)
+{
+	return text.find(needle) != std::string::npos;
+}
+
 void
 test_broadcast_49m_dipole()
 {
@@ -259,6 +265,79 @@ test_quarter_wave_14_2_mhz()
 }
 
 void
+test_random_wire_frequency_guidance()
+{
+	qantcal::calculators::AntennaCalculationInput input;
+
+	input.antenna_type = qantcal::calculators::AntennaType::RandomWire;
+	input.design_mode = qantcal::calculators::DesignMode::FrequencyToLength;
+	input.frequency_mhz = 7.1;
+
+	const qantcal::calculators::AntennaCalculationResult result =
+		qantcal::calculators::calculate_antenna(input);
+
+	assert(result.ok);
+	assert(near_value(result.frequency_mhz, 7.1, 0.000001));
+	assert(result.total_length_m == 0.0);
+	assert(result.wavelength_m > 0.0);
+	assert(contains_text(result.matching_note, "tuner"));
+	assert(contains_text(result.counterpoise_note, "counterpoise"));
+	assert(has_warning(result, "does not calculate a resonant cut length"));
+}
+
+void
+test_random_wire_invalid_frequency_fails()
+{
+	qantcal::calculators::AntennaCalculationInput input;
+
+	input.antenna_type = qantcal::calculators::AntennaType::RandomWire;
+	input.design_mode = qantcal::calculators::DesignMode::FrequencyToLength;
+	input.frequency_mhz = 0.0;
+
+	const qantcal::calculators::AntennaCalculationResult result =
+		qantcal::calculators::calculate_antenna(input);
+
+	assert(!result.ok);
+	assert(!result.error.empty());
+}
+
+void
+test_random_wire_length_guidance()
+{
+	qantcal::calculators::AntennaCalculationInput input;
+
+	input.antenna_type = qantcal::calculators::AntennaType::RandomWire;
+	input.design_mode = qantcal::calculators::DesignMode::LengthToFrequency;
+	input.length_m = 20.0;
+
+	const qantcal::calculators::AntennaCalculationResult result =
+		qantcal::calculators::calculate_antenna(input);
+
+	assert(result.ok);
+	assert(near_value(result.total_length_m, 20.0, 0.000001));
+	assert(result.frequency_mhz > 0.0);
+	assert(has_warning(result, "physical wire length"));
+	assert(contains_text(result.trimming_note, "not treat this as a resonant cut length"));
+}
+
+void
+test_random_wire_near_half_wave_warns()
+{
+	qantcal::calculators::AntennaCalculationInput input;
+
+	input.antenna_type = qantcal::calculators::AntennaType::RandomWire;
+	input.design_mode = qantcal::calculators::DesignMode::LengthToFrequency;
+	input.frequency_mhz = 7.1;
+	input.length_m = expected_length(7.1, 0.5, 1.0);
+
+	const qantcal::calculators::AntennaCalculationResult result =
+		qantcal::calculators::calculate_antenna(input);
+
+	assert(result.ok);
+	assert(has_warning(result, "half-wave multiple"));
+}
+
+void
 test_reverse_efhw_length_to_frequency()
 {
 	qantcal::calculators::AntennaCalculationInput input;
@@ -377,6 +456,10 @@ main()
 	test_invalid_zero_length();
 	test_microwave_wire_formula_warns();
 	test_quarter_wave_14_2_mhz();
+	test_random_wire_frequency_guidance();
+	test_random_wire_invalid_frequency_fails();
+	test_random_wire_length_guidance();
+	test_random_wire_near_half_wave_warns();
 	test_reverse_centimetres_to_frequency();
 	test_reverse_efhw_length_to_frequency();
 	test_reverse_length_to_frequency();
