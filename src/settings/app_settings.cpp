@@ -11,6 +11,7 @@ namespace {
 
 constexpr const char *ANTENNA_TYPE_KEY = "calculator/antenna_type";
 constexpr const char *BAND_INDEX_KEY = "calculator/band_index";
+constexpr const char *LANGUAGE_CODE_KEY = "application/language_code";
 constexpr const char *LENGTH_UNIT_KEY = "calculator/length_unit";
 constexpr const char *SHORTENING_FACTOR_KEY = "calculator/shortening_factor";
 
@@ -36,6 +37,14 @@ AppSettings::band_index() const
 	QSettings settings;
 
 	return settings.value(BAND_INDEX_KEY, 4).toInt();
+}
+
+QString
+AppSettings::language_code() const
+{
+	QSettings settings;
+
+	return settings.value(LANGUAGE_CODE_KEY, QStringLiteral("system")).toString();
 }
 
 calculators::LengthUnit
@@ -69,6 +78,14 @@ AppSettings::set_band_index(int index)
 	QSettings settings;
 
 	settings.setValue(BAND_INDEX_KEY, index);
+}
+
+void
+AppSettings::set_language_code(const QString &language_code)
+{
+	QSettings settings;
+
+	settings.setValue(LANGUAGE_CODE_KEY, language_code);
 }
 
 void

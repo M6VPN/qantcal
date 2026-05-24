@@ -26,8 +26,10 @@
 #include "reference/mode_reference.h"
 #include "reference/propagation_notes.h"
 #include "reference/reach_estimator.h"
+#include "settings/translation_manager.h"
 
 #include <QAction>
+#include <QActionGroup>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDoubleSpinBox>
@@ -622,7 +624,11 @@ MainWindow::closeEvent(QCloseEvent *event)
 void
 MainWindow::create_actions()
 {
-	QMenu *file_menu = menuBar()->addMenu(tr("&File"));
+	const QString selected_language = settings::normalised_language_code(app_settings.language_code());
+
+	menuBar()->clear();
+	file_menu = menuBar()->addMenu(tr("&File"));
+	file_menu->setObjectName(QStringLiteral("file_menu"));
 	QAction *new_action = file_menu->addAction(tr("New Project"));
 	QAction *open_action = file_menu->addAction(tr("Open Project"));
 	QAction *save_action = file_menu->addAction(tr("Save Project"));
@@ -633,18 +639,36 @@ MainWindow::create_actions()
 	file_menu->addSeparator();
 	QAction *exit_action = file_menu->addAction(tr("Exit"));
 
-	QMenu *help_menu = menuBar()->addMenu(tr("&Help"));
-	QAction *about_action = help_menu->addAction(tr("About qantcal"));
-	QMenu *edit_menu = menuBar()->addMenu(tr("&Edit"));
-	QAction *undo_action = undo_stack->createUndoAction(this, tr("Undo"));
-	QAction *redo_action = undo_stack->createRedoAction(this, tr("Redo"));
-	QMenu *view_menu = menuBar()->addMenu(tr("&View"));
+	edit_menu = menuBar()->addMenu(tr("&Edit"));
+	edit_menu->setObjectName(QStringLiteral("edit_menu"));
+	QAction *undo_action = undo_stack->createUndoAction(edit_menu, tr("Undo"));
+	QAction *redo_action = undo_stack->createRedoAction(edit_menu, tr("Redo"));
+	view_menu = menuBar()->addMenu(tr("&View"));
+	view_menu->setObjectName(QStringLiteral("view_menu"));
 	QAction *zoom_in_action = view_menu->addAction(tr("Zoom In"));
 	QAction *zoom_out_action = view_menu->addAction(tr("Zoom Out"));
 	QAction *reset_zoom_action = view_menu->addAction(tr("Reset Zoom"));
 	QAction *fit_design_action = view_menu->addAction(tr("Fit Design"));
 	QAction *pan_action = view_menu->addAction(tr("Pan Mode"));
 	pan_action->setCheckable(true);
+
+	language_menu = menuBar()->addMenu(tr("&Language"));
+	language_menu->setObjectName(QStringLiteral("language_menu"));
+	QActionGroup *language_group = new QActionGroup(language_menu);
+	QAction *system_language_action = language_menu->addAction(tr("System default"));
+	QAction *english_language_action = language_menu->addAction(tr("English"));
+	QAction *russian_language_action = language_menu->addAction(tr("Russian"));
+	help_menu = menuBar()->addMenu(tr("&Help"));
+	help_menu->setObjectName(QStringLiteral("help_menu"));
+	QAction *about_action = help_menu->addAction(tr("About qantcal"));
+
+	for (QAction *language_action : { system_language_action, english_language_action, russian_language_action }) {
+		language_action->setCheckable(true);
+		language_group->addAction(language_action);
+	}
+	system_language_action->setChecked(selected_language == QStringLiteral("system"));
+	english_language_action->setChecked(selected_language == QStringLiteral("en"));
+	russian_language_action->setChecked(selected_language == QStringLiteral("ru_RU"));
 
 	new_action->setShortcut(QKeySequence::New);
 	open_action->setShortcut(QKeySequence::Open);
@@ -677,6 +701,20 @@ MainWindow::create_actions()
 	connect(reset_zoom_action, &QAction::triggered, this, [this]() { design_view->reset_zoom(); });
 	connect(fit_design_action, &QAction::triggered, this, [this]() { design_view->fit_design(); });
 	connect(pan_action, &QAction::toggled, this, [this](bool enabled) { design_view->set_pan_mode(enabled); });
+	connect(system_language_action, &QAction::triggered, this, [this]() { select_language(QStringLiteral("system")); });
+	connect(english_language_action, &QAction::triggered, this, [this]() { select_language(QStringLiteral("en")); });
+	connect(russian_language_action, &QAction::triggered, this, [this]() { select_language(QStringLiteral("ru_RU")); });
+}
+
+void
+MainWindow::select_language(const QString &language_code)
+{
+	const QString normalised_code = settings::normalised_language_code(language_code);
+
+	app_settings.set_language_code(normalised_code);
+	settings::apply_language(normalised_code);
+	retranslate_shell();
+	statusBar()->showMessage(tr("Language updated"));
 }
 
 void
@@ -685,6 +723,7 @@ MainWindow::create_central_widget()
 	QWidget *central = new QWidget(this);
 	QVBoxLayout *root_layout = new QVBoxLayout(central);
 	QTabWidget *tabs = new QTabWidget(central);
+	main_tabs = tabs;
 
 	tabs->setAccessibleName(QStringLiteral("qantcal calculator tabs"));
 	tabs->setAccessibleDescription(QStringLiteral("Switches between antenna, LF/MF, RF, and propagation calculators."));
@@ -967,7 +1006,7 @@ MainWindow::create_rf_calculators_tab(QTabWidget *tabs)
 {
 	QWidget *rf_tab = new QWidget(tabs);
 	QVBoxLayout *root_layout = new QVBoxLayout(rf_tab);
-	QTabWidget *rf_tabs = new QTabWidget(rf_tab);
+	rf_tabs = new QTabWidget(rf_tab);
 
 	rf_tabs->setAccessibleName(QStringLiteral("RF calculator tabs"));
 	rf_tabs->setAccessibleDescription(QStringLiteral("Switches between coil, coax, choke, matching, impedance, loading coil, LC, trap, SWR, and radio horizon calculators."));
@@ -2215,6 +2254,30 @@ MainWindow::calculate_swr()
 			.arg(result.delivered_power_w, 0, 'f', 3)
 			.arg(QString::fromStdString(result.note))
 	);
+}
+
+void
+MainWindow::retranslate_shell()
+{
+	create_actions();
+	if (main_tabs != nullptr) {
+		main_tabs->setTabText(0, tr("Antenna Calculator"));
+		main_tabs->setTabText(1, tr("LF/MF Antennas"));
+		main_tabs->setTabText(2, tr("RF Calculators"));
+		main_tabs->setTabText(3, tr("Band & Propagation"));
+	}
+	if (rf_tabs != nullptr) {
+		rf_tabs->setTabText(0, tr("Air-core coil"));
+		rf_tabs->setTabText(1, tr("Coax loss"));
+		rf_tabs->setTabText(2, tr("RF choke"));
+		rf_tabs->setTabText(3, tr("Matching"));
+		rf_tabs->setTabText(4, tr("Impedance"));
+		rf_tabs->setTabText(5, tr("Loading coil"));
+		rf_tabs->setTabText(6, tr("LC resonance"));
+		rf_tabs->setTabText(7, tr("Trap"));
+		rf_tabs->setTabText(8, tr("SWR / reflected power"));
+		rf_tabs->setTabText(9, tr("Radio horizon"));
+	}
 }
 
 void

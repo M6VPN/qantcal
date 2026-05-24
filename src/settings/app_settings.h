@@ -7,6 +7,8 @@
 #include "calculators/antenna_calculator.h"
 #include "calculators/rf_units.h"
 
+#include <QString>
+
 namespace qantcal::settings {
 
 class AppSettings {
@@ -15,11 +17,13 @@ public:
 
 	calculators::AntennaType antenna_type() const;
 	int band_index() const;
+	QString language_code() const;
 	calculators::LengthUnit length_unit() const;
 	double shortening_factor() const;
 
 	void set_antenna_type(calculators::AntennaType antenna_type);
 	void set_band_index(int index);
+	void set_language_code(const QString &language_code);
 	void set_length_unit(calculators::LengthUnit unit);
 	void set_shortening_factor(double shortening_factor);
 };

@@ -62,6 +62,8 @@ add_library(qantcal_core
 	reference/reach_estimator.h
 	settings/app_settings.cpp
 	settings/app_settings.h
+	settings/translation_manager.cpp
+	settings/translation_manager.h
 )
 
 target_include_directories(qantcal_core

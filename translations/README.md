@@ -17,3 +17,5 @@ The application searches these paths at startup:
 - `../translations/` from the executable directory
 - `../share/qantcal/translations/` from the executable directory
 - `translations/` in the current working directory
+
+Users can change language at runtime from the Language menu. The default setting is `system`, which follows the user's environment locale and falls back to English when no matching catalog is available.

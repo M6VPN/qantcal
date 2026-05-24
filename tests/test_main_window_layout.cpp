@@ -9,6 +9,8 @@
 #include <QApplication>
 #include <QComboBox>
 #include <QGraphicsPathItem>
+#include <QMenu>
+#include <QMenuBar>
 #include <QScrollArea>
 #include <QTabWidget>
 #include <QTextEdit>
@@ -58,6 +60,16 @@ test_folded_dipole_scene_uses_folded_path()
 
 	assert(result.ok);
 	assert(path_count >= 1);
+}
+
+void
+test_help_menu_is_final(const qantcal::MainWindow &window)
+{
+	const QList<QAction *> actions = window.menuBar()->actions();
+
+	assert(actions.size() >= 5);
+	assert(actions.last()->menu()->objectName() == QStringLiteral("help_menu"));
+	assert(actions[actions.size() - 2]->menu()->objectName() == QStringLiteral("language_menu"));
 }
 
 void
@@ -115,12 +127,14 @@ main(int argc, char *argv[])
 	test_folded_dipole_scene_uses_folded_path();
 	process_resize(window, 800, 600);
 	test_antenna_selector_contains_folded_dipole(window);
+	test_help_menu_is_final(window);
 	test_scroll_areas_are_present(window);
 	test_read_only_outputs_have_accessible_names(window);
 	test_tabs_are_present(window);
 
 	process_resize(window, 480, 720);
 	test_antenna_selector_contains_folded_dipole(window);
+	test_help_menu_is_final(window);
 	test_scroll_areas_are_present(window);
 	test_read_only_outputs_have_accessible_names(window);
 	test_tabs_are_present(window);

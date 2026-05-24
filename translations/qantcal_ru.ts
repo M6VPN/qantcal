@@ -62,6 +62,26 @@
 		<translation>&amp;Вид</translation>
 	</message>
 	<message>
+		<source>&amp;Language</source>
+		<translation>&amp;Язык</translation>
+	</message>
+	<message>
+		<source>System default</source>
+		<translation>Системный язык</translation>
+	</message>
+	<message>
+		<source>English</source>
+		<translation>Английский</translation>
+	</message>
+	<message>
+		<source>Russian</source>
+		<translation>Русский</translation>
+	</message>
+	<message>
+		<source>Language updated</source>
+		<translation>Язык обновлен</translation>
+	</message>
+	<message>
 		<source>Zoom In</source>
 		<translation>Увеличить</translation>
 	</message>
