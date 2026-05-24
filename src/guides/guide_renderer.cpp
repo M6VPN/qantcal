@@ -4,6 +4,7 @@
 #include "guide_renderer.h"
 
 #include <QFont>
+#include <QFontMetricsF>
 #include <QPageSize>
 #include <QPdfWriter>
 #include <QPen>
@@ -22,6 +23,12 @@ struct RenderState {
 	double bottom = 0.0;
 	double y = 0.0;
 	int page_number = 1;
+};
+
+struct DiagramLegendEntry {
+	QColor colour;
+	QString label;
+	bool feedpoint = false;
 };
 
 double
@@ -142,6 +149,13 @@ is_feedpoint_kind(const QString &kind)
 		|| kind == QStringLiteral("yagi_driven_element");
 }
 
+bool
+is_yagi_kind(const QString &kind)
+{
+	return kind == QStringLiteral("yagi_element")
+		|| kind == QStringLiteral("yagi_driven_element");
+}
+
 QRectF
 diagram_bounds(const QVector<project::DiagramItemDescriptor> &items)
 {
@@ -170,13 +184,28 @@ diagram_bounds(const QVector<project::DiagramItemDescriptor> &items)
 		bottom += 1.0;
 	}
 
-	return QRectF(QPointF(left, top), QPointF(right, bottom));
+	QRectF bounds(QPointF(left, top), QPointF(right, bottom));
+	const double minimum_dimension = qMax(20.0, qMax(bounds.width(), bounds.height()) * 0.08);
+	if (bounds.width() < minimum_dimension) {
+		const double delta = (minimum_dimension - bounds.width()) / 2.0;
+		bounds.adjust(-delta, 0.0, delta, 0.0);
+	}
+	if (bounds.height() < minimum_dimension) {
+		const double delta = (minimum_dimension - bounds.height()) / 2.0;
+		bounds.adjust(0.0, -delta, 0.0, delta);
+	}
+
+	const double x_padding = qMax(24.0, bounds.width() * 0.12);
+	const double y_padding = qMax(24.0, bounds.height() * 0.12);
+	bounds.adjust(-x_padding, -y_padding, x_padding, y_padding);
+
+	return bounds;
 }
 
 QPointF
 map_diagram_point(const QPointF &point, const QRectF &bounds, const QRectF &target)
 {
-	const double padding = 16.0;
+	const double padding = 4.0;
 	const QRectF draw_rect = target.adjusted(padding, padding, -padding, -padding);
 	const double scale = qMin(draw_rect.width() / bounds.width(), draw_rect.height() / bounds.height());
 	const QSizeF scaled_size(bounds.width() * scale, bounds.height() * scale);
@@ -189,6 +218,78 @@ map_diagram_point(const QPointF &point, const QRectF &bounds, const QRectF &targ
 		origin.x() + (point.x() - bounds.left()) * scale,
 		origin.y() + (point.y() - bounds.top()) * scale
 	);
+}
+
+QPointF
+feedpoint_for_item(const QString &kind, const QPolygonF &mapped_points, const QRectF &diagram_rect)
+{
+	if (mapped_points.isEmpty())
+		return diagram_rect.center();
+
+	const QRectF item_bounds = mapped_points.boundingRect();
+	if (kind == QStringLiteral("end_fed") || kind == QStringLiteral("vertical"))
+		return mapped_points.first();
+	if (kind == QStringLiteral("halo") || kind == QStringLiteral("loop"))
+		return QPointF(item_bounds.center().x(), item_bounds.bottom());
+
+	return item_bounds.center();
+}
+
+QString
+legend_label_for_item(const project::DiagramItemDescriptor &item, calculators::LengthUnit length_unit)
+{
+	QString label = item.label;
+	if (label.isEmpty())
+		label = item.kind;
+	if (item.length_metres > 0.0) {
+		label += QStringLiteral(" / %1")
+			.arg(QString::fromStdString(calculators::format_length(item.length_metres, length_unit)));
+	}
+
+	return label;
+}
+
+void
+draw_diagram_legend(QPainter &painter, const QRectF &legend_rect, const QVector<DiagramLegendEntry> &entries, const QFont &font)
+{
+	if (entries.isEmpty())
+		return;
+
+	const int columns = entries.size() > 3 ? 2 : 1;
+	const int rows = (entries.size() + columns - 1) / columns;
+	const double row_height = qMax(13.0, qMin(18.0, (legend_rect.height() - 8.0) / qMax(1, rows)));
+	const double column_width = legend_rect.width() / columns;
+	const QFontMetricsF metrics(font);
+
+	painter.save();
+	painter.setFont(font);
+
+	for (int i = 0; i < entries.size(); ++i) {
+		const int column = i % columns;
+		const int row = i / columns;
+		const QRectF row_rect(
+			legend_rect.left() + column * column_width,
+			legend_rect.top() + 4.0 + row * row_height,
+			column_width,
+			row_height
+		);
+		const QPointF sample_start(row_rect.left() + 4.0, row_rect.center().y());
+		const QPointF sample_end(sample_start.x() + 20.0, row_rect.center().y());
+		const QRectF text_rect(row_rect.left() + 32.0, row_rect.top(), row_rect.width() - 36.0, row_rect.height());
+		const QString text = metrics.elidedText(entries[i].label, Qt::ElideRight, text_rect.width());
+
+		painter.setPen(QPen(entries[i].colour, 2.0));
+		painter.drawLine(sample_start, sample_end);
+		if (entries[i].feedpoint) {
+			painter.setPen(QPen(QColor(170, 60, 40), 1.4));
+			painter.drawEllipse(sample_start + QPointF(10.0, 0.0), 3.0, 3.0);
+		}
+
+		painter.setPen(Qt::black);
+		painter.drawText(text_rect, Qt::AlignLeft | Qt::AlignVCenter, text);
+	}
+
+	painter.restore();
 }
 
 void
@@ -208,20 +309,33 @@ draw_diagram_fallback(QPainter &painter, RenderState &state)
 void
 draw_diagram(QPainter &painter, RenderState &state, const GuideDocument &document, const QFont &font)
 {
-	const double diagram_height = 170.0;
-	ensure_space(painter, state, diagram_height + 12.0);
-	const QRectF diagram_rect(state.content_rect.left(), state.y, state.content_rect.width(), diagram_height);
-
 	if (document.diagram_items.isEmpty()) {
 		draw_diagram_fallback(painter, state);
 		return;
 	}
+
+	const int item_count = qMax(1, document.diagram_items.size());
+	const int legend_columns = item_count > 3 ? 2 : 1;
+	const int legend_rows = (item_count + legend_columns - 1) / legend_columns;
+	const double legend_height = qMin(82.0, qMax(44.0, 18.0 * legend_rows + 12.0));
+	const double diagram_height = qMin(350.0, qMax(235.0, state.content_rect.width() * 0.48 + legend_height));
+	ensure_space(painter, state, diagram_height + 12.0);
+	const QRectF diagram_rect(state.content_rect.left(), state.y, state.content_rect.width(), diagram_height);
 
 	const QRectF bounds = diagram_bounds(document.diagram_items);
 	const QPen frame_pen(QColor(130, 130, 130), 1.0);
 	const QPen wire_pen(QColor(30, 90, 150), 2.2);
 	const QPen yagi_pen(QColor(30, 90, 150), 2.0);
 	const QPen feed_pen(QColor(170, 60, 40), 1.6);
+	const QPen separator_pen(QColor(190, 190, 190), 0.8);
+	const QRectF legend_rect(
+		diagram_rect.left() + 12.0,
+		diagram_rect.bottom() - legend_height - 8.0,
+		diagram_rect.width() - 24.0,
+		legend_height
+	);
+	const QRectF plot_rect = diagram_rect.adjusted(12.0, 12.0, -12.0, -(legend_height + 18.0));
+	QVector<DiagramLegendEntry> legend_entries;
 	QFont label_font = font;
 	label_font.setPointSize(8);
 
@@ -230,15 +344,19 @@ draw_diagram(QPainter &painter, RenderState &state, const GuideDocument &documen
 	painter.setRenderHint(QPainter::Antialiasing, true);
 	painter.setPen(frame_pen);
 	painter.drawRect(diagram_rect);
+	painter.setPen(separator_pen);
+	painter.drawLine(QPointF(legend_rect.left(), legend_rect.top() - 5.0), QPointF(legend_rect.right(), legend_rect.top() - 5.0));
 
 	for (const project::DiagramItemDescriptor &item : document.diagram_items) {
 		const QVector<QPointF> points = diagram_points(item);
 		QPolygonF mapped_points;
+		const bool yagi_kind = is_yagi_kind(item.kind);
+		const QPen item_pen = yagi_kind ? yagi_pen : wire_pen;
 
 		for (const QPointF &point : points)
-			mapped_points << map_diagram_point(point, bounds, diagram_rect);
+			mapped_points << map_diagram_point(point, bounds, plot_rect);
 		if (mapped_points.size() >= 2) {
-			painter.setPen(item.kind == QStringLiteral("yagi_element") || item.kind == QStringLiteral("yagi_driven_element") ? yagi_pen : wire_pen);
+			painter.setPen(item_pen);
 			if (item.kind == QStringLiteral("loop")) {
 				painter.drawPolygon(mapped_points);
 			} else if (item.kind == QStringLiteral("folded_dipole") && mapped_points.size() >= 7) {
@@ -253,24 +371,20 @@ draw_diagram(QPainter &painter, RenderState &state, const GuideDocument &documen
 			}
 		}
 
-		const QPointF label_point = mapped_points.isEmpty()
-			? diagram_rect.center()
-			: mapped_points.boundingRect().center();
 		if (is_feedpoint_kind(item.kind)) {
+			const QPointF feedpoint = feedpoint_for_item(item.kind, mapped_points, plot_rect);
 			painter.setPen(feed_pen);
-			painter.drawEllipse(label_point, 3.5, 3.5);
+			painter.drawEllipse(feedpoint, 3.8, 3.8);
 		}
-		if (!item.label.isEmpty()) {
-			QString label = item.label;
-			if (item.length_metres > 0.0) {
-				label += QStringLiteral(" / %1")
-					.arg(QString::fromStdString(calculators::format_length(item.length_metres, document.length_unit)));
-			}
-			painter.setPen(Qt::black);
-			painter.drawText(QRectF(label_point.x() + 5.0, label_point.y() + 5.0, 190.0, 28.0), Qt::AlignLeft | Qt::AlignTop, label);
-		}
+
+		legend_entries.append(DiagramLegendEntry{
+			item_pen.color(),
+			legend_label_for_item(item, document.length_unit),
+			is_feedpoint_kind(item.kind)
+		});
 	}
 
+	draw_diagram_legend(painter, legend_rect, legend_entries, label_font);
 	painter.restore();
 	state.y += diagram_rect.height() + 12.0;
 }

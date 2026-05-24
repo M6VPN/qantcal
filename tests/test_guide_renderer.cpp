@@ -7,8 +7,11 @@
 
 #include "project/antenna_project.h"
 
+#include <QColor>
 #include <QFile>
 #include <QGuiApplication>
+#include <QImage>
+#include <QPainter>
 #include <QTemporaryFile>
 
 #include <cassert>
@@ -27,6 +30,33 @@ sample_document()
 	document.title = QStringLiteral("Renderer test");
 	document.sections.append(qantcal::guides::make_text_section(QStringLiteral("Title / project summary"), QStringLiteral("Project: Renderer test")));
 	document.sections.append(qantcal::guides::make_text_section(QStringLiteral("Diagram"), QStringLiteral("No scene required for test.")));
+
+	return document;
+}
+
+qantcal::guides::GuideDocument
+sample_vertical_diagram_document()
+{
+	qantcal::guides::GuideDocument document;
+	qantcal::project::DiagramItemDescriptor item;
+
+	document.antenna_type = QStringLiteral("Quarter-wave vertical");
+	document.generated_utc = QStringLiteral("2026-05-22T00:00:00Z");
+	document.length_unit = qantcal::calculators::LengthUnit::Metres;
+	document.project_title = QStringLiteral("Vertical renderer test");
+	document.title = QStringLiteral("Vertical renderer test");
+	document.sections.append(qantcal::guides::make_text_section(QStringLiteral("Diagram"), QString()));
+	item.id = QStringLiteral("vertical-1");
+	item.kind = QStringLiteral("vertical");
+	item.label = QStringLiteral("Vertical radiator with radials");
+	item.length_metres = 5.05;
+	item.points.append(QPointF(0.0, 70.0));
+	item.points.append(QPointF(0.0, -80.0));
+	item.points.append(QPointF(0.0, 70.0));
+	item.points.append(QPointF(-120.0, 105.0));
+	item.points.append(QPointF(0.0, 70.0));
+	item.points.append(QPointF(120.0, 105.0));
+	document.diagram_items.append(item);
 
 	return document;
 }
@@ -108,6 +138,63 @@ sample_yagi_document()
 	return qantcal::guides::create_project_guide_document(project, qantcal::calculators::LengthUnit::Centimetres);
 }
 
+QRect
+blue_pixel_bounds(const QImage &image)
+{
+	int left = image.width();
+	int top = image.height();
+	int right = -1;
+	int bottom = -1;
+
+	for (int y = 0; y < image.height(); ++y) {
+		for (int x = 0; x < image.width(); ++x) {
+			const QColor colour = QColor::fromRgb(image.pixel(x, y));
+			if (colour.blue() > 100 && colour.red() < 120 && colour.green() < 150) {
+				left = qMin(left, x);
+				top = qMin(top, y);
+				right = qMax(right, x);
+				bottom = qMax(bottom, y);
+			}
+		}
+	}
+
+	if (right < left || bottom < top)
+		return QRect();
+
+	return QRect(QPoint(left, top), QPoint(right, bottom));
+}
+
+int
+dark_pixel_count(const QImage &image, const QRect &area)
+{
+	int count = 0;
+	const QRect bounded = area.intersected(image.rect());
+
+	for (int y = bounded.top(); y <= bounded.bottom(); ++y) {
+		for (int x = bounded.left(); x <= bounded.right(); ++x) {
+			const QColor colour = QColor::fromRgb(image.pixel(x, y));
+			if (colour.red() < 80 && colour.green() < 80 && colour.blue() < 80)
+				count++;
+		}
+	}
+
+	return count;
+}
+
+QImage
+render_document_image(const qantcal::guides::GuideDocument &document)
+{
+	QImage image(900, 1200, QImage::Format_ARGB32_Premultiplied);
+	qantcal::guides::GuideRenderer renderer;
+
+	image.fill(Qt::white);
+	QPainter painter(&image);
+	assert(renderer.render_to_painter(document, painter, QRectF(0.0, 0.0, image.width(), image.height()), qantcal::guides::default_export_options()));
+	painter.end();
+
+	return image;
+}
+
 void
 test_export_options_defaults()
 {
@@ -172,6 +259,36 @@ test_render_line_diagram_pdf()
 }
 
 void
+test_render_vertical_diagram_image_is_not_flattened()
+{
+	const QImage image = render_document_image(sample_vertical_diagram_document());
+	const QRect wire_bounds = blue_pixel_bounds(image);
+
+	assert(wire_bounds.isValid());
+	assert(wire_bounds.height() > 160);
+	assert(wire_bounds.width() > 160);
+	assert(dark_pixel_count(image, QRect(0, wire_bounds.top(), image.width(), wire_bounds.height() + 80)) > 20);
+}
+
+void
+test_render_vertical_diagram_pdf()
+{
+	QTemporaryFile file;
+	qantcal::guides::GuideRenderer renderer;
+	const qantcal::guides::GuideDocument document = sample_vertical_diagram_document();
+
+	assert(document.diagram_items.size() == 1);
+	assert(document.diagram_items[0].kind == QStringLiteral("vertical"));
+	assert(file.open());
+	const QString path = file.fileName();
+	file.close();
+
+	assert(renderer.render_to_pdf(document, path, qantcal::guides::default_export_options()));
+	assert(QFile::exists(path));
+	assert(QFile(path).size() > 0);
+}
+
+void
 test_render_yagi_pdf()
 {
 	QTemporaryFile file;
@@ -199,6 +316,8 @@ main(int argc, char *argv[])
 	test_render_empty_diagram_document();
 	test_render_folded_dipole_pdf();
 	test_render_line_diagram_pdf();
+	test_render_vertical_diagram_image_is_not_flattened();
+	test_render_vertical_diagram_pdf();
 	test_render_yagi_pdf();
 
 	return 0;
