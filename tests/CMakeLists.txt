@@ -17,6 +17,10 @@ add_executable(test_broadcast_band_reference
 	test_broadcast_band_reference.cpp
 )
 
+add_executable(test_choke_calculator
+	test_choke_calculator.cpp
+)
+
 add_executable(test_coil_calculator
 	test_coil_calculator.cpp
 )
@@ -113,6 +117,11 @@ target_link_libraries(test_band_reference
 )
 
 target_link_libraries(test_broadcast_band_reference
+	PRIVATE
+		qantcal_core
+)
+
+target_link_libraries(test_choke_calculator
 	PRIVATE
 		qantcal_core
 )
@@ -238,6 +247,11 @@ add_test(
 )
 
 add_test(
+	NAME test_choke_calculator
+	COMMAND test_choke_calculator
+)
+
+add_test(
 	NAME test_coil_calculator
 	COMMAND test_coil_calculator
 )
@@ -342,6 +356,7 @@ set_tests_properties(
 	test_antenna_measurement
 	test_band_reference
 	test_broadcast_band_reference
+	test_choke_calculator
 	test_coil_calculator
 	test_coax_loss_calculator
 	test_ham_band

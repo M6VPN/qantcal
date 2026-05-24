@@ -47,6 +47,7 @@ private:
 	void create_lf_mf_tab(QTabWidget *tabs);
 	void create_rf_calculators_tab(QTabWidget *tabs);
 	void export_pdf();
+	void calculate_choke();
 	void calculate_yagi();
 	void calculate_lf_mf();
 	void calculate_lf_mf(bool update_project);
@@ -93,6 +94,7 @@ private:
 	QComboBox *antenna_type_box = nullptr;
 	QComboBox *band_box = nullptr;
 	QComboBox *band_filter_box = nullptr;
+	QComboBox *choke_mix_box = nullptr;
 	QComboBox *design_mode_box = nullptr;
 	QComboBox *length_unit_box = nullptr;
 	QComboBox *lf_mf_band_box = nullptr;
@@ -106,6 +108,10 @@ private:
 	QDoubleSpinBox *coil_diameter_box = nullptr;
 	QDoubleSpinBox *coil_length_box = nullptr;
 	QDoubleSpinBox *coil_turns_box = nullptr;
+	QDoubleSpinBox *choke_frequency_box = nullptr;
+	QDoubleSpinBox *choke_reference_impedance_box = nullptr;
+	QDoubleSpinBox *choke_target_impedance_box = nullptr;
+	QDoubleSpinBox *choke_turns_box = nullptr;
 	QDoubleSpinBox *coax_frequency_box = nullptr;
 	QDoubleSpinBox *coax_length_box = nullptr;
 	QDoubleSpinBox *coax_loss_box = nullptr;
@@ -137,6 +143,7 @@ private:
 	QGroupBox *yagi_group = nullptr;
 	QLineEdit *project_title_box = nullptr;
 	QPushButton *calculate_button = nullptr;
+	QTextEdit *choke_result_text = nullptr;
 	QTextEdit *coil_result_text = nullptr;
 	QTextEdit *coax_result_text = nullptr;
 	QTextEdit *horizon_result_text = nullptr;

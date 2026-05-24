@@ -3,6 +3,7 @@
 
 #include "main_window.h"
 
+#include "calculators/choke_calculator.h"
 #include "calculators/coil_calculator.h"
 #include "calculators/coax_loss_calculator.h"
 #include "calculators/lf_mf_antenna_calculator.h"
@@ -844,7 +845,7 @@ MainWindow::create_rf_calculators_tab(QTabWidget *tabs)
 	QTabWidget *rf_tabs = new QTabWidget(rf_tab);
 
 	rf_tabs->setAccessibleName(QStringLiteral("RF calculator tabs"));
-	rf_tabs->setAccessibleDescription(QStringLiteral("Switches between coil, coax, LC, trap, SWR, and radio horizon calculators."));
+	rf_tabs->setAccessibleDescription(QStringLiteral("Switches between coil, coax, choke, LC, trap, SWR, and radio horizon calculators."));
 
 	QWidget *coil_tab = new QWidget(rf_tabs);
 	QFormLayout *coil_layout = new QFormLayout(coil_tab);
@@ -892,6 +893,37 @@ MainWindow::create_rf_calculators_tab(QTabWidget *tabs)
 	coax_layout->addRow(coax_button);
 	coax_layout->addRow(coax_result_text);
 	rf_tabs->addTab(create_scroll_area(coax_tab, rf_tabs, QStringLiteral("Coax loss input area")), QStringLiteral("Coax loss"));
+
+	QWidget *choke_tab = new QWidget(rf_tabs);
+	QFormLayout *choke_layout = new QFormLayout(choke_tab);
+	QPushButton *choke_button = new QPushButton(QStringLiteral("Calculate"), choke_tab);
+	choke_mix_box = new QComboBox(choke_tab);
+	choke_mix_box->addItem(calculators::choke_mix_label(calculators::ChokeCoreMix::Custom), static_cast<int>(calculators::ChokeCoreMix::Custom));
+	choke_mix_box->addItem(calculators::choke_mix_label(calculators::ChokeCoreMix::Mix31), static_cast<int>(calculators::ChokeCoreMix::Mix31));
+	choke_mix_box->addItem(calculators::choke_mix_label(calculators::ChokeCoreMix::Mix43), static_cast<int>(calculators::ChokeCoreMix::Mix43));
+	choke_mix_box->addItem(calculators::choke_mix_label(calculators::ChokeCoreMix::Mix61), static_cast<int>(calculators::ChokeCoreMix::Mix61));
+	choke_mix_box->addItem(calculators::choke_mix_label(calculators::ChokeCoreMix::AirCore), static_cast<int>(calculators::ChokeCoreMix::AirCore));
+	choke_frequency_box = create_positive_spin_box(choke_tab, 300000.0, 6, QStringLiteral(" MHz"), 14.2);
+	choke_reference_impedance_box = create_positive_spin_box(choke_tab, 1000000.0, 3, QStringLiteral(" ohms"), 100.0);
+	choke_turns_box = create_positive_spin_box(choke_tab, 1000.0, 2, QString(), 4.0);
+	choke_target_impedance_box = create_positive_spin_box(choke_tab, 1000000.0, 3, QStringLiteral(" ohms"), 1000.0);
+	choke_result_text = new QTextEdit(choke_tab);
+	configure_form_layout(choke_layout);
+	set_widget_hint(choke_mix_box, QStringLiteral("Choke ferrite mix"), QStringLiteral("Ferrite mix or air-core style for notes only; impedance still needs measured or datasheet data."));
+	set_widget_hint(choke_frequency_box, QStringLiteral("Choke frequency"), QStringLiteral("Operating frequency in MHz for the reference impedance."));
+	set_widget_hint(choke_reference_impedance_box, QStringLiteral("Reference impedance"), QStringLiteral("Measured or datasheet impedance for one pass or turn at the entered frequency."));
+	set_widget_hint(choke_turns_box, QStringLiteral("Choke turns"), QStringLiteral("Number of turns used for the turns-squared estimate."));
+	set_widget_hint(choke_target_impedance_box, QStringLiteral("Target choking impedance"), QStringLiteral("Desired common-mode choking impedance."));
+	set_widget_hint(choke_button, QStringLiteral("Calculate RF choke"), QStringLiteral("Updates RF choke impedance estimates and warnings."));
+	configure_result_text(choke_result_text, QStringLiteral("RF choke results"), QStringLiteral("Shows estimated choke impedance, suggested turns, notes, and warnings."));
+	choke_layout->addRow(QStringLiteral("Mix"), choke_mix_box);
+	choke_layout->addRow(QStringLiteral("Frequency"), choke_frequency_box);
+	choke_layout->addRow(QStringLiteral("Reference impedance"), choke_reference_impedance_box);
+	choke_layout->addRow(QStringLiteral("Turns"), choke_turns_box);
+	choke_layout->addRow(QStringLiteral("Target impedance"), choke_target_impedance_box);
+	choke_layout->addRow(choke_button);
+	choke_layout->addRow(choke_result_text);
+	rf_tabs->addTab(create_scroll_area(choke_tab, rf_tabs, QStringLiteral("RF choke input area")), QStringLiteral("RF choke"));
 
 	QWidget *lc_tab = new QWidget(rf_tabs);
 	QFormLayout *lc_layout = new QFormLayout(lc_tab);
@@ -975,6 +1007,7 @@ MainWindow::create_rf_calculators_tab(QTabWidget *tabs)
 	tabs->addTab(rf_tab, QStringLiteral("RF Calculators"));
 
 	connect(coil_button, &QPushButton::clicked, this, &MainWindow::calculate_coil);
+	connect(choke_button, &QPushButton::clicked, this, &MainWindow::calculate_choke);
 	connect(coax_button, &QPushButton::clicked, this, &MainWindow::calculate_coax_loss);
 	connect(lc_button, &QPushButton::clicked, this, &MainWindow::calculate_lc);
 	connect(trap_button, &QPushButton::clicked, this, &MainWindow::calculate_trap);
@@ -982,6 +1015,7 @@ MainWindow::create_rf_calculators_tab(QTabWidget *tabs)
 	connect(horizon_button, &QPushButton::clicked, this, &MainWindow::calculate_horizon);
 
 	calculate_coil();
+	calculate_choke();
 	calculate_coax_loss();
 	calculate_lc();
 	calculate_trap();
@@ -1602,6 +1636,37 @@ MainWindow::calculate_lf_mf(bool update_project)
 	current_project.lf_mf_design.receive_only = result.receive_only;
 	current_project.lf_mf_design.has_calculated_loading_inductance = result.loading_coil.has_inductance;
 	current_project.lf_mf_design.calculated_loading_inductance_uh = result.loading_coil.inductance_uh;
+}
+
+void
+MainWindow::calculate_choke()
+{
+	if (choke_result_text == nullptr)
+		return;
+
+	calculators::ChokeCalculationInput input;
+
+	input.mix = static_cast<calculators::ChokeCoreMix>(choke_mix_box->currentData().toInt());
+	input.frequency_mhz = choke_frequency_box->value();
+	input.reference_impedance_ohms = choke_reference_impedance_box->value();
+	input.target_impedance_ohms = choke_target_impedance_box->value();
+	input.turns = choke_turns_box->value();
+
+	const calculators::ChokeCalculationResult result = calculators::calculate_choke(input);
+	if (!result.ok) {
+		choke_result_text->setPlainText(QStringLiteral("Input error: %1").arg(result.error_message));
+		return;
+	}
+
+	QString text;
+	text += QStringLiteral("Estimated choking impedance: %1 ohms\n").arg(result.estimated_impedance_ohms, 0, 'f', 3);
+	text += QStringLiteral("Target ratio: %1x\n").arg(result.target_ratio, 0, 'f', 2);
+	text += QStringLiteral("Suggested turns for target: %1\n").arg(result.suggested_turns);
+	text += QStringLiteral("\n%1\n\n%2").arg(result.mix_note, result.note);
+	if (!result.warnings.isEmpty())
+		text += QStringLiteral("\n\nWarnings:\n%1").arg(result.warnings.join(QStringLiteral("\n")));
+
+	choke_result_text->setPlainText(text);
 }
 
 void

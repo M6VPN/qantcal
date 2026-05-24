@@ -4,6 +4,8 @@
 add_library(qantcal_core
 	calculators/antenna_calculator.cpp
 	calculators/antenna_calculator.h
+	calculators/choke_calculator.cpp
+	calculators/choke_calculator.h
 	calculators/coil_calculator.cpp
 	calculators/coil_calculator.h
 	calculators/coax_loss_calculator.cpp

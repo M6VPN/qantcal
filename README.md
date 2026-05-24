@@ -29,7 +29,7 @@ Progress:
 - first-pass Yagi starting dimensions for 2 to 10 elements
 - basic PDF export
 - printable PDF export with project sections, assumptions, and safety notes
-- RF helper calculators for air-core coils, LC resonance, SWR/reflected power, coax loss, and radio horizon
+- RF helper calculators for air-core coils, RF chokes, LC resonance, SWR/reflected power, coax loss, and radio horizon
 - amateur band, broadcast/reference band, and cautious propagation notes
 - LF/MF antenna guidance for full-size references, loaded verticals, top-loaded antennas, and receive-only compact antennas
 - a small pure C++ calculator test executable
