@@ -26,7 +26,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake ninja-build qt6-base-dev qt6-base-dev-tools
+          sudo apt-get install -y build-essential cmake ninja-build qt6-base-dev qt6-base-dev-tools qt6-tools-dev-tools
 
       - name: Configure
         run: cmake --preset ci-debug
@@ -63,6 +63,7 @@ jobs:
             mingw-w64-ucrt-x86_64-gcc
             mingw-w64-ucrt-x86_64-ninja
             mingw-w64-ucrt-x86_64-qt6-base
+            mingw-w64-ucrt-x86_64-qt6-tools
 
       - name: Configure
         run: cmake --preset ci-debug

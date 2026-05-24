@@ -162,9 +162,11 @@ test_read_only_outputs_have_accessible_names(const qantcal::MainWindow &window)
 void
 test_russian_menu_translation_loads()
 {
+	qputenv("QANTCAL_TRANSLATION_DIR", QANTCAL_TEST_TRANSLATION_DIR);
 	assert(qantcal::settings::apply_language(QStringLiteral("ru_RU")));
 	assert(QCoreApplication::translate("qantcal::MainWindow", "&File") == QStringLiteral("&Файл"));
 	qantcal::settings::apply_language(QStringLiteral("en"));
+	qunsetenv("QANTCAL_TRANSLATION_DIR");
 }
 
 void

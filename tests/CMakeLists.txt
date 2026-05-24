@@ -192,6 +192,15 @@ target_link_libraries(test_main_window_layout
 		qantcal_ui
 )
 
+target_compile_definitions(test_main_window_layout
+	PRIVATE
+		QANTCAL_TEST_TRANSLATION_DIR="${CMAKE_CURRENT_BINARY_DIR}/../translations"
+)
+
+if(TARGET qantcal_translations)
+	add_dependencies(test_main_window_layout qantcal_translations)
+endif()
+
 target_link_libraries(test_loading_coil_calculator
 	PRIVATE
 		qantcal_core

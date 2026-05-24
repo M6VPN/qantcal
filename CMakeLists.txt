@@ -17,7 +17,7 @@ include(GNUInstallDirs)
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Network PrintSupport)
 qt_standard_project_setup()
 
-find_program(LRELEASE_EXECUTABLE NAMES lrelease lrelease-qt6)
+find_program(LRELEASE_EXECUTABLE NAMES lrelease-qt6 lrelease)
 
 set(QANTCAL_TRANSLATION_SOURCES
 	translations/qantcal_ru.ts
