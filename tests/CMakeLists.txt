@@ -33,6 +33,10 @@ add_executable(test_ham_band
 	test_ham_band.cpp
 )
 
+add_executable(test_impedance_calculator
+	test_impedance_calculator.cpp
+)
+
 add_executable(test_guide_document
 	test_guide_document.cpp
 )
@@ -145,6 +149,11 @@ target_link_libraries(test_coax_loss_calculator
 )
 
 target_link_libraries(test_ham_band
+	PRIVATE
+		qantcal_core
+)
+
+target_link_libraries(test_impedance_calculator
 	PRIVATE
 		qantcal_core
 )
@@ -285,6 +294,11 @@ add_test(
 )
 
 add_test(
+	NAME test_impedance_calculator
+	COMMAND test_impedance_calculator
+)
+
+add_test(
 	NAME test_guide_document
 	COMMAND test_guide_document
 )
@@ -388,6 +402,7 @@ set_tests_properties(
 	test_coil_calculator
 	test_coax_loss_calculator
 	test_ham_band
+	test_impedance_calculator
 	test_guide_document
 	test_guide_renderer
 	test_lc_resonance_calculator

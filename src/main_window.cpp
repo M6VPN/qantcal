@@ -6,6 +6,7 @@
 #include "calculators/choke_calculator.h"
 #include "calculators/coil_calculator.h"
 #include "calculators/coax_loss_calculator.h"
+#include "calculators/impedance_calculator.h"
 #include "calculators/lf_mf_antenna_calculator.h"
 #include "calculators/lc_resonance_calculator.h"
 #include "calculators/matching_network_calculator.h"
@@ -58,6 +59,8 @@
 #include <QDateTime>
 #include <QFileInfo>
 #include <QUndoStack>
+
+#include <cmath>
 
 namespace qantcal {
 
@@ -249,6 +252,15 @@ create_positive_spin_box(QWidget *parent, double maximum, int decimals, const QS
 	box->setValue(value);
 
 	return box;
+}
+
+QString
+format_finite_or_infinite(double value, int decimals, const QString &infinite_text)
+{
+	if (std::isinf(value))
+		return infinite_text;
+
+	return QString::number(value, 'f', decimals);
 }
 
 void
@@ -847,7 +859,7 @@ MainWindow::create_rf_calculators_tab(QTabWidget *tabs)
 	QTabWidget *rf_tabs = new QTabWidget(rf_tab);
 
 	rf_tabs->setAccessibleName(QStringLiteral("RF calculator tabs"));
-	rf_tabs->setAccessibleDescription(QStringLiteral("Switches between coil, coax, choke, matching, LC, trap, SWR, and radio horizon calculators."));
+	rf_tabs->setAccessibleDescription(QStringLiteral("Switches between coil, coax, choke, matching, impedance, LC, trap, SWR, and radio horizon calculators."));
 
 	QWidget *coil_tab = new QWidget(rf_tabs);
 	QFormLayout *coil_layout = new QFormLayout(coil_tab);
@@ -947,6 +959,33 @@ MainWindow::create_rf_calculators_tab(QTabWidget *tabs)
 	matching_layout->addRow(matching_result_text);
 	rf_tabs->addTab(create_scroll_area(matching_tab, rf_tabs, QStringLiteral("Matching network input area")), QStringLiteral("Matching"));
 
+	QWidget *impedance_tab = new QWidget(rf_tabs);
+	QFormLayout *impedance_layout = new QFormLayout(impedance_tab);
+	QPushButton *impedance_button = new QPushButton(QStringLiteral("Calculate"), impedance_tab);
+	impedance_frequency_box = create_positive_spin_box(impedance_tab, 300000.0, 6, QStringLiteral(" MHz"), 14.2);
+	impedance_system_box = create_positive_spin_box(impedance_tab, 1000000.0, 3, QStringLiteral(" ohms"), 50.0);
+	impedance_resistance_box = create_positive_spin_box(impedance_tab, 1000000.0, 3, QStringLiteral(" ohms"), 50.0);
+	impedance_reactance_box = new QDoubleSpinBox(impedance_tab);
+	impedance_reactance_box->setRange(-1000000.0, 1000000.0);
+	impedance_reactance_box->setDecimals(3);
+	impedance_reactance_box->setSuffix(QStringLiteral(" ohms"));
+	impedance_reactance_box->setValue(0.0);
+	impedance_result_text = new QTextEdit(impedance_tab);
+	configure_form_layout(impedance_layout);
+	set_widget_hint(impedance_frequency_box, QStringLiteral("Impedance frequency"), QStringLiteral("Operating frequency in MHz."));
+	set_widget_hint(impedance_system_box, QStringLiteral("System impedance"), QStringLiteral("Reference system impedance, usually 50 ohms."));
+	set_widget_hint(impedance_resistance_box, QStringLiteral("Measured resistance"), QStringLiteral("Measured resistance part of the impedance."));
+	set_widget_hint(impedance_reactance_box, QStringLiteral("Measured reactance"), QStringLiteral("Measured reactance part of the impedance; positive is inductive and negative is capacitive."));
+	set_widget_hint(impedance_button, QStringLiteral("Calculate impedance"), QStringLiteral("Updates impedance, SWR, return loss, and equivalent component values."));
+	configure_result_text(impedance_result_text, QStringLiteral("Impedance results"), QStringLiteral("Shows complex impedance analysis, match quality, notes, and warnings."));
+	impedance_layout->addRow(QStringLiteral("Frequency"), impedance_frequency_box);
+	impedance_layout->addRow(QStringLiteral("System impedance"), impedance_system_box);
+	impedance_layout->addRow(QStringLiteral("Resistance R"), impedance_resistance_box);
+	impedance_layout->addRow(QStringLiteral("Reactance X"), impedance_reactance_box);
+	impedance_layout->addRow(impedance_button);
+	impedance_layout->addRow(impedance_result_text);
+	rf_tabs->addTab(create_scroll_area(impedance_tab, rf_tabs, QStringLiteral("Impedance helper input area")), QStringLiteral("Impedance"));
+
 	QWidget *lc_tab = new QWidget(rf_tabs);
 	QFormLayout *lc_layout = new QFormLayout(lc_tab);
 	QPushButton *lc_button = new QPushButton(QStringLiteral("Calculate"), lc_tab);
@@ -1032,6 +1071,7 @@ MainWindow::create_rf_calculators_tab(QTabWidget *tabs)
 	connect(choke_button, &QPushButton::clicked, this, &MainWindow::calculate_choke);
 	connect(coax_button, &QPushButton::clicked, this, &MainWindow::calculate_coax_loss);
 	connect(matching_button, &QPushButton::clicked, this, &MainWindow::calculate_matching_network);
+	connect(impedance_button, &QPushButton::clicked, this, &MainWindow::calculate_impedance);
 	connect(lc_button, &QPushButton::clicked, this, &MainWindow::calculate_lc);
 	connect(trap_button, &QPushButton::clicked, this, &MainWindow::calculate_trap);
 	connect(swr_button, &QPushButton::clicked, this, &MainWindow::calculate_swr);
@@ -1041,6 +1081,7 @@ MainWindow::create_rf_calculators_tab(QTabWidget *tabs)
 	calculate_choke();
 	calculate_coax_loss();
 	calculate_matching_network();
+	calculate_impedance();
 	calculate_lc();
 	calculate_trap();
 	calculate_swr();
@@ -1692,6 +1733,48 @@ MainWindow::calculate_choke()
 		text += QStringLiteral("\n\nWarnings:\n%1").arg(result.warnings.join(QStringLiteral("\n")));
 
 	choke_result_text->setPlainText(text);
+}
+
+void
+MainWindow::calculate_impedance()
+{
+	if (impedance_result_text == nullptr)
+		return;
+
+	calculators::ImpedanceCalculationInput input;
+
+	input.frequency_mhz = impedance_frequency_box->value();
+	input.reactance_ohms = impedance_reactance_box->value();
+	input.resistance_ohms = impedance_resistance_box->value();
+	input.system_impedance_ohms = impedance_system_box->value();
+
+	const calculators::ImpedanceCalculationResult result = calculators::calculate_impedance(input);
+	if (!result.ok) {
+		impedance_result_text->setPlainText(QStringLiteral("Input error: %1").arg(result.error_message));
+		return;
+	}
+
+	QString text;
+	text += QStringLiteral("Impedance magnitude: %1 ohms\n").arg(result.impedance_magnitude_ohms, 0, 'f', 3);
+	text += QStringLiteral("Phase angle: %1 degrees\n").arg(result.phase_degrees, 0, 'f', 3);
+	text += QStringLiteral("Admittance magnitude: %1 S\n").arg(result.admittance_magnitude_siemens, 0, 'g', 6);
+	text += QStringLiteral("Conductance: %1 S\n").arg(result.conductance_siemens, 0, 'g', 6);
+	text += QStringLiteral("Susceptance: %1 S\n").arg(result.susceptance_siemens, 0, 'g', 6);
+	text += QStringLiteral("Reflection coefficient magnitude: %1\n").arg(result.reflection_coefficient_magnitude, 0, 'f', 6);
+	text += QStringLiteral("SWR: %1\n").arg(format_finite_or_infinite(result.swr, 3, QStringLiteral("infinite")));
+	text += QStringLiteral("Return loss: %1 dB\n").arg(format_finite_or_infinite(result.return_loss_db, 3, QStringLiteral("infinite")));
+	text += QStringLiteral("Mismatch loss: %1 dB\n").arg(format_finite_or_infinite(result.mismatch_loss_db, 3, QStringLiteral("infinite")));
+	if (!result.has_reactive_component)
+		text += QStringLiteral("Reactive component: none at the entered frequency\n");
+	else if (result.reactance_is_inductive)
+		text += QStringLiteral("Equivalent series inductance: %1 uH\n").arg(result.equivalent_inductance_uh, 0, 'f', 6);
+	else
+		text += QStringLiteral("Equivalent series capacitance: %1 pF\n").arg(result.equivalent_capacitance_pf, 0, 'f', 3);
+	text += QStringLiteral("\n%1").arg(result.note);
+	if (!result.warnings.isEmpty())
+		text += QStringLiteral("\n\nWarnings:\n%1").arg(result.warnings.join(QStringLiteral("\n")));
+
+	impedance_result_text->setPlainText(text);
 }
 
 void

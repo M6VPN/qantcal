@@ -30,7 +30,7 @@ Progress:
 - basic PDF export
 - printable PDF export with project sections, assumptions, and safety notes
 - multi-band target guidance for fan dipoles, traps, common feedpoint caveats, and independent target calculations
-- RF helper calculators for air-core coils, RF chokes, L-network matching, LC resonance, SWR/reflected power, coax loss, and radio horizon
+- RF helper calculators for air-core coils, RF chokes, complex impedance, L-network matching, LC resonance, SWR/reflected power, coax loss, and radio horizon
 - amateur band, broadcast/reference band, and cautious propagation notes
 - LF/MF antenna guidance for full-size references, loaded verticals, top-loaded antennas, and receive-only compact antennas
 - a small pure C++ calculator test executable

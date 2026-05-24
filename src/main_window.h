@@ -48,6 +48,7 @@ private:
 	void create_rf_calculators_tab(QTabWidget *tabs);
 	void export_pdf();
 	void calculate_choke();
+	void calculate_impedance();
 	void calculate_matching_network();
 	void calculate_yagi();
 	void calculate_lf_mf();
@@ -120,6 +121,10 @@ private:
 	QDoubleSpinBox *coax_swr_box = nullptr;
 	QDoubleSpinBox *horizon_rx_height_box = nullptr;
 	QDoubleSpinBox *horizon_tx_height_box = nullptr;
+	QDoubleSpinBox *impedance_frequency_box = nullptr;
+	QDoubleSpinBox *impedance_reactance_box = nullptr;
+	QDoubleSpinBox *impedance_resistance_box = nullptr;
+	QDoubleSpinBox *impedance_system_box = nullptr;
 	QDoubleSpinBox *lc_capacitance_box = nullptr;
 	QDoubleSpinBox *lc_frequency_box = nullptr;
 	QDoubleSpinBox *lc_inductance_box = nullptr;
@@ -151,6 +156,7 @@ private:
 	QTextEdit *coil_result_text = nullptr;
 	QTextEdit *coax_result_text = nullptr;
 	QTextEdit *horizon_result_text = nullptr;
+	QTextEdit *impedance_result_text = nullptr;
 	QTextEdit *lc_result_text = nullptr;
 	QTextEdit *lf_mf_result_text = nullptr;
 	QTextEdit *matching_result_text = nullptr;

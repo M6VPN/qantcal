@@ -12,6 +12,8 @@ add_library(qantcal_core
 	calculators/coax_loss_calculator.h
 	calculators/ham_band.cpp
 	calculators/ham_band.h
+	calculators/impedance_calculator.cpp
+	calculators/impedance_calculator.h
 	calculators/lf_mf_antenna_calculator.cpp
 	calculators/lf_mf_antenna_calculator.h
 	calculators/lc_resonance_calculator.cpp
