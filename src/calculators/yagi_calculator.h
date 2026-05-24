@@ -54,6 +54,7 @@ struct YagiDesignResult {
 	QStringList assumptions;
 	QStringList construction_notes;
 	QStringList tuning_notes;
+	QStringList warnings;
 };
 
 YagiDesignResult calculate_yagi(const YagiDesignInput &input);

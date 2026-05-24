@@ -90,6 +90,11 @@ result_to_text(const calculators::AntennaCalculationResult &result, calculators:
 		.arg(QString::fromStdString(result.matching_note));
 	text += QStringLiteral("Trimming note: %1\n")
 		.arg(QString::fromStdString(result.trimming_note));
+	if (!result.warnings.empty()) {
+		text += QStringLiteral("\nWarnings:\n");
+		for (const std::string &warning : result.warnings)
+			text += QStringLiteral("%1\n").arg(QString::fromStdString(warning));
+	}
 
 	return text;
 }
@@ -134,6 +139,8 @@ yagi_result_to_text(const calculators::YagiDesignResult &result, calculators::Le
 	text += QStringLiteral("\nAssumptions:\n%1\n").arg(result.assumptions.join(QStringLiteral("\n")));
 	text += QStringLiteral("\nConstruction notes:\n%1\n").arg(result.construction_notes.join(QStringLiteral("\n")));
 	text += QStringLiteral("\nTuning notes:\n%1\n").arg(result.tuning_notes.join(QStringLiteral("\n")));
+	if (!result.warnings.isEmpty())
+		text += QStringLiteral("\nWarnings:\n%1\n").arg(result.warnings.join(QStringLiteral("\n")));
 
 	return text;
 }

@@ -15,6 +15,12 @@ constexpr double MIN_FREQUENCY_MHZ = 0.001;
 constexpr double MAX_FREQUENCY_MHZ = 300000.0;
 constexpr double MIN_LENGTH_M = 0.001;
 constexpr double MAX_LENGTH_M = 10000.0;
+constexpr double LARGE_INSTALLATION_LENGTH_M = 80.0;
+constexpr double IMPRACTICAL_LENGTH_M = 250.0;
+constexpr double EFFECTIVELY_IMPOSSIBLE_LENGTH_M = 1000.0;
+constexpr double TOLERANCE_DOMINATED_LENGTH_M = 0.05;
+constexpr double LF_VLF_FREQUENCY_MHZ = 0.1;
+constexpr double MICROWAVE_WARNING_FREQUENCY_MHZ = 1300.0;
 
 double
 base_wave_ratio(AntennaType antenna_type)
@@ -172,6 +178,24 @@ populate_notes(AntennaCalculationResult &result)
 	result.trimming_note = trimming_note_for_type(result.antenna_type);
 }
 
+void
+append_practical_warnings(AntennaCalculationResult &result)
+{
+	if (result.total_length_m >= EFFECTIVELY_IMPOSSIBLE_LENGTH_M) {
+		result.warnings.push_back("Calculated physical length is effectively impossible for typical amateur construction.");
+	} else if (result.total_length_m >= IMPRACTICAL_LENGTH_M) {
+		result.warnings.push_back("Calculated physical length is impractical for ordinary sites.");
+	} else if (result.total_length_m >= LARGE_INSTALLATION_LENGTH_M) {
+		result.warnings.push_back("Calculated physical length needs a large installation area and substantial supports.");
+	}
+	if (result.total_length_m > 0.0 && result.total_length_m <= TOLERANCE_DOMINATED_LENGTH_M)
+		result.warnings.push_back("Calculated physical length is very small, so construction tolerance and connector geometry can dominate.");
+	if (result.frequency_mhz > 0.0 && result.frequency_mhz < LF_VLF_FREQUENCY_MHZ)
+		result.warnings.push_back("LF/VLF wire dimensions are extreme; use the LF/MF guidance tool for loaded or receive-only concepts.");
+	if (result.frequency_mhz >= MICROWAVE_WARNING_FREQUENCY_MHZ)
+		result.warnings.push_back("Simple wire formulas are poor guidance for microwave-style construction and feed geometry.");
+}
+
 }
 
 const char *
@@ -226,6 +250,7 @@ calculate_antenna(const AntennaCalculationInput &input)
 		result.frequency_mhz = input.frequency_mhz;
 		result.wavelength_m = wavelength_m;
 		populate_type_lengths(result, input.antenna_type, length_m);
+		append_practical_warnings(result);
 
 		return result;
 	}
@@ -238,6 +263,7 @@ calculate_antenna(const AntennaCalculationInput &input)
 	result.frequency_mhz = frequency_from_wavelength_mhz(wavelength_m);
 	result.wavelength_m = wavelength_m;
 	populate_type_lengths(result, input.antenna_type, input.length_m);
+	append_practical_warnings(result);
 
 	return result;
 }

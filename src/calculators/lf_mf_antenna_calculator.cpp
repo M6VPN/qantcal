@@ -11,6 +11,9 @@ namespace qantcal::calculators {
 
 namespace {
 
+constexpr double EXTREME_REFERENCE_LENGTH_M = 250.0;
+constexpr double VERY_SHORT_ELECTRICAL_RATIO = 0.01;
+
 bool
 is_valid_non_negative(double value)
 {
@@ -75,12 +78,18 @@ calculate_lf_mf_antenna(const LfMfAntennaInput &input)
 	switch (input.design_type) {
 	case LfMfDesignType::FullSizeReference:
 		result.notes << QStringLiteral("Full-size LF/MF antennas are usually impractical at ordinary sites. Treat these as reference dimensions.");
+		if (result.quarter_wave_metres >= EXTREME_REFERENCE_LENGTH_M)
+			result.warnings << QStringLiteral("Full-size LF/MF reference dimensions are impractical for ordinary sites.");
 		break;
 	case LfMfDesignType::ShortLoadedVertical:
 		result.loading_likely_required = true;
 		result.dimensions << QStringLiteral("Physical vertical height: %1").arg(QString::fromStdString(format_length(input.vertical_height_metres, input.preferred_length_unit)));
 		result.dimensions << QStringLiteral("Electrical height: %1").arg(format_ratio(result.electrical_height_ratio));
 		result.notes << QStringLiteral("A loading coil and matching or tuning network are likely required.");
+		if (input.vertical_height_metres <= 0.0)
+			result.warnings << QStringLiteral("Vertical height is zero, so this is only a loading/matching reference, not a buildable vertical antenna.");
+		else if (result.electrical_height_ratio < VERY_SHORT_ELECTRICAL_RATIO)
+			result.warnings << QStringLiteral("Vertical height is below 0.01 wavelength, so losses and voltage stress are likely severe.");
 		if (result.electrical_height_ratio < 0.05)
 			result.warnings << QStringLiteral("Vertical height is below 0.05 wavelength, so this is an electrically short antenna.");
 		break;
@@ -91,12 +100,20 @@ calculate_lf_mf_antenna(const LfMfAntennaInput &input)
 		result.dimensions << QStringLiteral("Total wire length: %1").arg(QString::fromStdString(format_length(result.total_wire_length_metres, input.preferred_length_unit)));
 		result.dimensions << QStringLiteral("Total wire ratio: %1").arg(format_ratio(result.total_wire_ratio));
 		result.notes << QStringLiteral("Top loading can reduce required loading inductance, but base loading or a matching network is still likely.");
+		if (input.vertical_height_metres <= 0.0)
+			result.warnings << QStringLiteral("Vertical section is zero, so this is not a buildable inverted-L antenna.");
+		if (result.total_wire_ratio < VERY_SHORT_ELECTRICAL_RATIO)
+			result.warnings << QStringLiteral("Total wire length is below 0.01 wavelength, so practical transmit performance is likely severe.");
 		break;
 	case LfMfDesignType::TopLoadedT:
 		result.loading_likely_required = true;
 		result.dimensions << QStringLiteral("Vertical section: %1").arg(QString::fromStdString(format_length(input.vertical_height_metres, input.preferred_length_unit)));
 		result.dimensions << QStringLiteral("Total top-hat length: %1").arg(QString::fromStdString(format_length(input.horizontal_or_top_length_metres, input.preferred_length_unit)));
 		result.notes << QStringLiteral("Top loading reduces required loading inductance but does not remove the need for tuning.");
+		if (input.vertical_height_metres <= 0.0)
+			result.warnings << QStringLiteral("Vertical section is zero, so this is not a buildable top-loaded vertical antenna.");
+		if (input.horizontal_or_top_length_metres <= 0.0)
+			result.warnings << QStringLiteral("Top-hat length is zero, so no top-loading geometry is defined.");
 		break;
 	case LfMfDesignType::ReceiveOnlyCompact:
 		result.receive_only = true;

@@ -4,6 +4,7 @@
 #include "guide_document.h"
 
 #include "calculators/rf_units.h"
+#include "calculators/yagi_calculator.h"
 #include "reference/band_reference.h"
 #include "reference/mode_reference.h"
 #include "reference/propagation_notes.h"
@@ -213,6 +214,8 @@ create_guide_document(
 	notes << QString::fromStdString(result.counterpoise_note);
 	notes << QString::fromStdString(result.matching_note);
 	notes << QString::fromStdString(result.trimming_note);
+	for (const std::string &warning : result.warnings)
+		notes << QString::fromStdString(warning);
 
 	document.dimensions_text = dimensions.join(QStringLiteral("\n"));
 	document.notes_text = notes.join(QStringLiteral("\n"));
@@ -325,9 +328,25 @@ create_project_guide_document(
 	}
 	document.sections.append(dimensions_section(dimensions));
 	if (project.antenna_type == calculators::AntennaType::Yagi) {
+		QString body = QStringLiteral("Dimensions are starting points. Build elements slightly long where practical and trim while measuring. Driven element feed and matching method is not designed in this pass. Use a balun or choke appropriate to the feed arrangement. Check SWR with an analyser or suitable meter at low power first. Mounting boom and element clamps can affect tuning.");
+
+		if (project.yagi_design.enabled) {
+			calculators::YagiDesignInput input;
+			input.boom_correction_metres = project.yagi_design.boom_correction_metres;
+			input.element_count = project.yagi_design.element_count;
+			input.element_diameter_metres = project.yagi_design.element_diameter_metres;
+			input.element_shortening_factor = project.yagi_design.element_shortening_factor;
+			input.frequency_mhz = project.yagi_design.frequency_mhz;
+			input.preset = project.yagi_design.preset;
+			input.preferred_length_unit = length_unit;
+			const calculators::YagiDesignResult yagi_result = calculators::calculate_yagi(input);
+			if (yagi_result.ok && !yagi_result.warnings.isEmpty())
+				body += QStringLiteral("\n\nWarnings:\n%1").arg(yagi_result.warnings.join(QStringLiteral("\n")));
+		}
+
 		document.sections.append(make_text_section(
 			QStringLiteral("Yagi construction and tuning notes"),
-			QStringLiteral("Dimensions are starting points. Build elements slightly long where practical and trim while measuring. Driven element feed and matching method is not designed in this pass. Use a balun or choke appropriate to the feed arrangement. Check SWR with an analyser or suitable meter at low power first. Mounting boom and element clamps can affect tuning."),
+			body,
 			true
 		));
 	}

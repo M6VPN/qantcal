@@ -15,6 +15,8 @@ constexpr double MIN_YAGI_FACTOR = 0.85;
 constexpr double MAX_YAGI_FACTOR = 1.00;
 constexpr double MIN_FREQUENCY_MHZ = 0.001;
 constexpr double MAX_FREQUENCY_MHZ = 300000.0;
+constexpr double LARGE_YAGI_BOOM_M = 6.0;
+constexpr double IMPRACTICAL_YAGI_BOOM_M = 15.0;
 
 bool
 is_valid_frequency(double frequency_mhz)
@@ -195,6 +197,12 @@ calculate_yagi(const YagiDesignInput &input)
 		result.assumptions << QStringLiteral("Longer boom layouts may improve directivity, but real optimisation requires modelling.");
 	if (input.boom_correction_metres > 0.0)
 		result.assumptions << QStringLiteral("Boom correction is construction-specific and must be verified.");
+	if (result.boom_length_metres >= IMPRACTICAL_YAGI_BOOM_M)
+		result.warnings << QStringLiteral("Calculated boom length is impractical for ordinary sites and needs engineered supports.");
+	else if (result.boom_length_metres >= LARGE_YAGI_BOOM_M)
+		result.warnings << QStringLiteral("Calculated boom length is a large structure and needs careful mechanical design.");
+	if (input.element_diameter_metres <= 0.0)
+		result.warnings << QStringLiteral("Element diameter is not supplied, so diameter and boom-effect corrections are not modelled.");
 
 	return result;
 }

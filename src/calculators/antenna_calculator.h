@@ -5,6 +5,7 @@
 #define QANTCAL_CALCULATORS_ANTENNA_CALCULATOR_H
 
 #include <string>
+#include <vector>
 
 namespace qantcal::calculators {
 
@@ -52,6 +53,7 @@ struct AntennaCalculationResult {
 	std::string error;
 	std::string matching_note;
 	std::string trimming_note;
+	std::vector<std::string> warnings;
 };
 
 AntennaCalculationResult calculate_antenna(const AntennaCalculationInput &input);

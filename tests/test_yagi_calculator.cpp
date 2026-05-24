@@ -41,6 +41,21 @@ test_compact_boom_shorter_than_conservative()
 }
 
 void
+test_hf_yagi_large_boom_warns()
+{
+	qantcal::calculators::YagiDesignInput input;
+
+	input.frequency_mhz = 14.2;
+	input.element_count = 5;
+	const qantcal::calculators::YagiDesignResult result =
+		qantcal::calculators::calculate_yagi(input);
+
+	assert(result.ok);
+	assert(result.boom_length_metres >= 15.0);
+	assert(result.warnings.join(QStringLiteral("\n")).contains(QStringLiteral("impractical")));
+}
+
+void
 test_invalid_element_count_fails()
 {
 	assert(!calculate(1, qantcal::calculators::YagiPreset::Conservative).ok);
@@ -112,6 +127,20 @@ test_long_boom_longer_than_conservative()
 }
 
 void
+test_missing_element_diameter_warns()
+{
+	qantcal::calculators::YagiDesignInput input;
+
+	input.frequency_mhz = 144.3;
+	input.element_diameter_metres = 0.0;
+	const qantcal::calculators::YagiDesignResult result =
+		qantcal::calculators::calculate_yagi(input);
+
+	assert(result.ok);
+	assert(result.warnings.join(QStringLiteral("\n")).contains(QStringLiteral("Element diameter")));
+}
+
+void
 test_ten_element_yagi_roles()
 {
 	const qantcal::calculators::YagiDesignResult result =
@@ -163,6 +192,16 @@ test_two_element_yagi_roles()
 }
 
 void
+test_vhf_compact_yagi_has_no_practicality_warnings()
+{
+	const qantcal::calculators::YagiDesignResult result =
+		calculate(3, qantcal::calculators::YagiPreset::Compact);
+
+	assert(result.ok);
+	assert(result.warnings.isEmpty());
+}
+
+void
 test_unit_formatting_does_not_change_internal_metres()
 {
 	qantcal::calculators::YagiDesignInput input;
@@ -186,15 +225,18 @@ int
 main()
 {
 	test_compact_boom_shorter_than_conservative();
+	test_hf_yagi_large_boom_warns();
 	test_invalid_element_count_fails();
 	test_invalid_frequency_fails();
 	test_invalid_shortening_factor_fails();
 	test_boom_correction_reduces_length();
 	test_invalid_boom_correction_fails();
 	test_long_boom_longer_than_conservative();
+	test_missing_element_diameter_warns();
 	test_ten_element_yagi_roles();
 	test_three_element_yagi_sanity();
 	test_two_element_yagi_roles();
+	test_vhf_compact_yagi_has_no_practicality_warnings();
 	test_unit_formatting_does_not_change_internal_metres();
 
 	return 0;

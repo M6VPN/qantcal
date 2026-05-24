@@ -15,6 +15,19 @@ near(double actual, double expected, double tolerance)
 }
 
 void
+test_full_size_reference_warns_when_impractical()
+{
+	qantcal::calculators::LfMfAntennaInput input;
+
+	input.frequency_mhz = 0.1365;
+	const qantcal::calculators::LfMfAntennaResult result =
+		qantcal::calculators::calculate_lf_mf_antenna(input);
+
+	assert(result.ok);
+	assert(result.warnings.join(QStringLiteral("\n")).contains(QStringLiteral("impractical")));
+}
+
+void
 test_full_size_reference_lengths()
 {
 	qantcal::calculators::LfMfAntennaInput input;
@@ -58,6 +71,21 @@ test_short_vertical_warns()
 }
 
 void
+test_short_vertical_zero_height_warns()
+{
+	qantcal::calculators::LfMfAntennaInput input;
+
+	input.design_type = qantcal::calculators::LfMfDesignType::ShortLoadedVertical;
+	input.frequency_mhz = 0.475;
+	input.vertical_height_metres = 0.0;
+	const qantcal::calculators::LfMfAntennaResult result =
+		qantcal::calculators::calculate_lf_mf_antenna(input);
+
+	assert(result.ok);
+	assert(result.warnings.join(QStringLiteral("\n")).contains(QStringLiteral("not a buildable vertical")));
+}
+
+void
 test_invalid_inputs()
 {
 	qantcal::calculators::LfMfAntennaInput input;
@@ -74,10 +102,12 @@ test_invalid_inputs()
 int
 main()
 {
+	test_full_size_reference_warns_when_impractical();
 	test_full_size_reference_lengths();
 	test_invalid_inputs();
 	test_quarter_wave_2200m_reference();
 	test_short_vertical_warns();
+	test_short_vertical_zero_height_warns();
 
 	return 0;
 }
