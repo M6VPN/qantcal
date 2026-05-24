@@ -12,7 +12,7 @@
 
 ![630m 2](screens/alpha/630m-2.png)
 
-![Coax Loss 14 MHz](screens/alpha/coax-loss-14MHz.png)
+![Coax Loss 14 MHz](screens/alpha/coax-loss-14Mhz.png)
 
 ![Band Prop 20m](screens/alpha/band-prop-20m.png)
 
