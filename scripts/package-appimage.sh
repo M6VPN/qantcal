@@ -4,16 +4,18 @@
 
 set -euo pipefail
 
-BUILD_DIR="${1:?build directory is required}"
+BUILD_DIR_INPUT="${1:?build directory is required}"
 LABEL="${2:?artifact label is required}"
 APPIMAGE_ARCH="${3:?AppImage architecture is required}"
-OUTPUT_DIR="${4:?output directory is required}"
+OUTPUT_DIR_INPUT="${4:?output directory is required}"
 
+BUILD_DIR="$(cd "${BUILD_DIR_INPUT}" && pwd)"
 APPDIR="${BUILD_DIR}/AppDir"
 TOOLS_DIR="${BUILD_DIR}/appimage-tools"
 TOOL_ARCH="${APPIMAGE_ARCH}"
 
-mkdir -p "${APPDIR}" "${TOOLS_DIR}" "${OUTPUT_DIR}"
+mkdir -p "${APPDIR}" "${TOOLS_DIR}" "${OUTPUT_DIR_INPUT}"
+OUTPUT_DIR="$(cd "${OUTPUT_DIR_INPUT}" && pwd)"
 rm -rf "${APPDIR:?}/"*
 
 cmake --install "${BUILD_DIR}" --prefix "${APPDIR}/usr"
