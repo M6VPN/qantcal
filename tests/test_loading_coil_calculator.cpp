@@ -29,6 +29,8 @@ test_lc_loading_inductance()
 	assert(result.ok);
 	assert(result.has_inductance);
 	assert(near(result.inductance_uh, 561.5, 2.0));
+	assert(near(result.capacitive_reactance_ohms, result.inductive_reactance_ohms, 0.001));
+	assert(near(result.inductive_reactance_ohms, 1675.0, 5.0));
 }
 
 void

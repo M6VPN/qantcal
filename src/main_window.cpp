@@ -9,6 +9,7 @@
 #include "calculators/impedance_calculator.h"
 #include "calculators/lf_mf_antenna_calculator.h"
 #include "calculators/lc_resonance_calculator.h"
+#include "calculators/loading_coil_calculator.h"
 #include "calculators/matching_network_calculator.h"
 #include "calculators/radio_horizon_calculator.h"
 #include "calculators/rf_units.h"
@@ -859,7 +860,7 @@ MainWindow::create_rf_calculators_tab(QTabWidget *tabs)
 	QTabWidget *rf_tabs = new QTabWidget(rf_tab);
 
 	rf_tabs->setAccessibleName(QStringLiteral("RF calculator tabs"));
-	rf_tabs->setAccessibleDescription(QStringLiteral("Switches between coil, coax, choke, matching, impedance, LC, trap, SWR, and radio horizon calculators."));
+	rf_tabs->setAccessibleDescription(QStringLiteral("Switches between coil, coax, choke, matching, impedance, loading coil, LC, trap, SWR, and radio horizon calculators."));
 
 	QWidget *coil_tab = new QWidget(rf_tabs);
 	QFormLayout *coil_layout = new QFormLayout(coil_tab);
@@ -986,6 +987,23 @@ MainWindow::create_rf_calculators_tab(QTabWidget *tabs)
 	impedance_layout->addRow(impedance_result_text);
 	rf_tabs->addTab(create_scroll_area(impedance_tab, rf_tabs, QStringLiteral("Impedance helper input area")), QStringLiteral("Impedance"));
 
+	QWidget *loading_coil_tab = new QWidget(rf_tabs);
+	QFormLayout *loading_coil_layout = new QFormLayout(loading_coil_tab);
+	QPushButton *loading_coil_button = new QPushButton(QStringLiteral("Calculate"), loading_coil_tab);
+	loading_coil_frequency_box = create_positive_spin_box(loading_coil_tab, 300000.0, 6, QStringLiteral(" MHz"), 0.475);
+	loading_coil_capacitance_box = create_positive_spin_box(loading_coil_tab, 1000000.0, 3, QStringLiteral(" pF"), 200.0);
+	loading_coil_result_text = new QTextEdit(loading_coil_tab);
+	configure_form_layout(loading_coil_layout);
+	set_widget_hint(loading_coil_frequency_box, QStringLiteral("Loading coil frequency"), QStringLiteral("Operating frequency in MHz."));
+	set_widget_hint(loading_coil_capacitance_box, QStringLiteral("Antenna capacitance"), QStringLiteral("Measured or estimated antenna capacitance in picofarads."));
+	set_widget_hint(loading_coil_button, QStringLiteral("Calculate loading coil"), QStringLiteral("Updates ideal loading inductance for the supplied capacitance."));
+	configure_result_text(loading_coil_result_text, QStringLiteral("Loading coil results"), QStringLiteral("Shows ideal loading coil inductance, reactance, notes, and warnings."));
+	loading_coil_layout->addRow(QStringLiteral("Frequency"), loading_coil_frequency_box);
+	loading_coil_layout->addRow(QStringLiteral("Antenna capacitance"), loading_coil_capacitance_box);
+	loading_coil_layout->addRow(loading_coil_button);
+	loading_coil_layout->addRow(loading_coil_result_text);
+	rf_tabs->addTab(create_scroll_area(loading_coil_tab, rf_tabs, QStringLiteral("Loading coil input area")), QStringLiteral("Loading coil"));
+
 	QWidget *lc_tab = new QWidget(rf_tabs);
 	QFormLayout *lc_layout = new QFormLayout(lc_tab);
 	QPushButton *lc_button = new QPushButton(QStringLiteral("Calculate"), lc_tab);
@@ -1072,6 +1090,7 @@ MainWindow::create_rf_calculators_tab(QTabWidget *tabs)
 	connect(coax_button, &QPushButton::clicked, this, &MainWindow::calculate_coax_loss);
 	connect(matching_button, &QPushButton::clicked, this, &MainWindow::calculate_matching_network);
 	connect(impedance_button, &QPushButton::clicked, this, &MainWindow::calculate_impedance);
+	connect(loading_coil_button, &QPushButton::clicked, this, &MainWindow::calculate_loading_coil);
 	connect(lc_button, &QPushButton::clicked, this, &MainWindow::calculate_lc);
 	connect(trap_button, &QPushButton::clicked, this, &MainWindow::calculate_trap);
 	connect(swr_button, &QPushButton::clicked, this, &MainWindow::calculate_swr);
@@ -1082,6 +1101,7 @@ MainWindow::create_rf_calculators_tab(QTabWidget *tabs)
 	calculate_coax_loss();
 	calculate_matching_network();
 	calculate_impedance();
+	calculate_loading_coil();
 	calculate_lc();
 	calculate_trap();
 	calculate_swr();
@@ -1775,6 +1795,40 @@ MainWindow::calculate_impedance()
 		text += QStringLiteral("\n\nWarnings:\n%1").arg(result.warnings.join(QStringLiteral("\n")));
 
 	impedance_result_text->setPlainText(text);
+}
+
+void
+MainWindow::calculate_loading_coil()
+{
+	if (loading_coil_result_text == nullptr)
+		return;
+
+	calculators::LoadingCoilInput input;
+
+	input.frequency_mhz = loading_coil_frequency_box->value();
+	input.estimated_capacitance_pf = loading_coil_capacitance_box->value();
+	input.has_estimated_capacitance = input.estimated_capacitance_pf > 0.0;
+
+	const calculators::LoadingCoilResult result = calculators::calculate_loading_coil(input);
+	if (!result.ok) {
+		loading_coil_result_text->setPlainText(QStringLiteral("Input error: %1").arg(result.error_message));
+		return;
+	}
+
+	QString text;
+	if (result.has_inductance) {
+		text += QStringLiteral("Ideal loading inductance: %1 uH\n").arg(result.inductance_uh, 0, 'f', 3);
+		text += QStringLiteral("Ideal loading inductance: %1 mH\n").arg(result.inductance_mh, 0, 'f', 6);
+		text += QStringLiteral("Capacitive reactance: %1 ohms\n").arg(result.capacitive_reactance_ohms, 0, 'f', 3);
+		text += QStringLiteral("Inductive reactance: %1 ohms\n").arg(result.inductive_reactance_ohms, 0, 'f', 3);
+	} else {
+		text += QStringLiteral("No inductance calculated. Enter antenna capacitance to solve ideal loading inductance.\n");
+	}
+	text += QStringLiteral("\nFirst-pass ideal loading helper. It resonates a supplied capacitance only and is not a full antenna or matching-network model.");
+	if (!result.warnings.isEmpty())
+		text += QStringLiteral("\n\nWarnings:\n%1").arg(result.warnings.join(QStringLiteral("\n")));
+
+	loading_coil_result_text->setPlainText(text);
 }
 
 void

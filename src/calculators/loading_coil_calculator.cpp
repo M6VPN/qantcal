@@ -60,6 +60,8 @@ calculate_loading_coil(const LoadingCoilInput &input)
 	result.inductance_h = 1.0 / (omega * omega * capacitance_f);
 	result.inductance_uh = result.inductance_h * 1.0e6;
 	result.inductance_mh = result.inductance_h * 1.0e3;
+	result.capacitive_reactance_ohms = 1.0 / (omega * capacitance_f);
+	result.inductive_reactance_ohms = omega * result.inductance_h;
 	result.has_inductance = true;
 
 	return result;

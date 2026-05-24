@@ -49,6 +49,7 @@ private:
 	void export_pdf();
 	void calculate_choke();
 	void calculate_impedance();
+	void calculate_loading_coil();
 	void calculate_matching_network();
 	void calculate_yagi();
 	void calculate_lf_mf();
@@ -128,6 +129,8 @@ private:
 	QDoubleSpinBox *lc_capacitance_box = nullptr;
 	QDoubleSpinBox *lc_frequency_box = nullptr;
 	QDoubleSpinBox *lc_inductance_box = nullptr;
+	QDoubleSpinBox *loading_coil_capacitance_box = nullptr;
+	QDoubleSpinBox *loading_coil_frequency_box = nullptr;
 	QDoubleSpinBox *length_box = nullptr;
 	QDoubleSpinBox *lf_mf_capacitance_box = nullptr;
 	QDoubleSpinBox *lf_mf_frequency_box = nullptr;
@@ -159,6 +162,7 @@ private:
 	QTextEdit *impedance_result_text = nullptr;
 	QTextEdit *lc_result_text = nullptr;
 	QTextEdit *lf_mf_result_text = nullptr;
+	QTextEdit *loading_coil_result_text = nullptr;
 	QTextEdit *matching_result_text = nullptr;
 	QTextEdit *project_notes_edit = nullptr;
 	QTextEdit *reference_text = nullptr;

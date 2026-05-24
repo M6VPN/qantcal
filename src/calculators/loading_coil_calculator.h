@@ -26,6 +26,8 @@ struct LoadingCoilResult {
 	double inductance_h = 0.0;
 	double inductance_uh = 0.0;
 	double inductance_mh = 0.0;
+	double capacitive_reactance_ohms = 0.0;
+	double inductive_reactance_ohms = 0.0;
 	QString error_message;
 	QStringList warnings;
 };

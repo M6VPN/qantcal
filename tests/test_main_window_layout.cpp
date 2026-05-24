@@ -57,7 +57,7 @@ test_tabs_are_present(const qantcal::MainWindow &window)
 
 	for (const QTabWidget *tab_widget : tab_widgets) {
 		has_main_tabs = has_main_tabs || tab_widget->count() == 4;
-		has_rf_tabs = has_rf_tabs || tab_widget->count() == 9;
+		has_rf_tabs = has_rf_tabs || tab_widget->count() == 10;
 	}
 
 	assert(has_main_tabs);
