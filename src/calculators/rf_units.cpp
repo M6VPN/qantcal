@@ -3,9 +3,13 @@
 
 #include "rf_units.h"
 
+#include <cctype>
+#include <cerrno>
 #include <cmath>
+#include <cstdlib>
 #include <iomanip>
 #include <sstream>
+#include <string>
 
 namespace qantcal::calculators {
 
@@ -20,6 +24,24 @@ constexpr double METRES_PER_INCH = 0.0254;
 constexpr double MILLIMETRES_PER_METRE = 1000.0;
 
 std::string
+lowercase_trimmed(std::string text)
+{
+	size_t begin = 0;
+	size_t end = text.size();
+
+	while (begin < end && std::isspace(static_cast<unsigned char>(text[begin])))
+		++begin;
+	while (end > begin && std::isspace(static_cast<unsigned char>(text[end - 1])))
+		--end;
+
+	text = text.substr(begin, end - begin);
+	for (char &character : text)
+		character = static_cast<char>(std::tolower(static_cast<unsigned char>(character)));
+
+	return text;
+}
+
+std::string
 fixed_decimal(double value, int precision)
 {
 	std::ostringstream stream;
@@ -27,6 +49,74 @@ fixed_decimal(double value, int precision)
 	stream << std::fixed << std::setprecision(precision) << value;
 
 	return stream.str();
+}
+
+bool
+parse_double_token(const std::string &text, size_t &position, double &value)
+{
+	const char *start = text.c_str() + position;
+	char *end = nullptr;
+
+	errno = 0;
+	value = std::strtod(start, &end);
+	if (end == start || errno == ERANGE || !std::isfinite(value) || value < 0.0)
+		return false;
+
+	position = static_cast<size_t>(end - text.c_str());
+
+	return true;
+}
+
+bool
+parse_word(const std::string &text, size_t &position, const std::string &word)
+{
+	if (text.compare(position, word.size(), word) != 0)
+		return false;
+
+	position += word.size();
+
+	return true;
+}
+
+void
+skip_spaces(const std::string &text, size_t &position)
+{
+	while (position < text.size() && std::isspace(static_cast<unsigned char>(text[position])))
+		++position;
+}
+
+bool
+parse_feet_unit(const std::string &text, size_t &position)
+{
+	if (position < text.size() && text[position] == '\'') {
+		++position;
+		return true;
+	}
+	if (parse_word(text, position, "feet"))
+		return true;
+	if (parse_word(text, position, "foot"))
+		return true;
+	if (parse_word(text, position, "ft"))
+		return true;
+
+	return false;
+}
+
+bool
+parse_inches_unit(const std::string &text, size_t &position)
+{
+	if (position < text.size() && text[position] == '"') {
+		++position;
+		return true;
+	}
+	if (parse_word(text, position, "inches"))
+		return true;
+	if (parse_word(text, position, "inch"))
+		return true;
+	if (parse_word(text, position, "in"))
+		return true;
+
+	return false;
 }
 
 }
@@ -180,6 +270,64 @@ length_unit_label(LengthUnit unit)
 	}
 
 	return "metres";
+}
+
+bool
+parse_feet_inches(const std::string &text, double &feet)
+{
+	const std::string input = lowercase_trimmed(text);
+	size_t position = 0;
+	double parsed_feet = 0.0;
+	double parsed_inches = 0.0;
+
+	if (input.empty())
+		return false;
+
+	if (input.find(':') != std::string::npos) {
+		if (!parse_double_token(input, position, parsed_feet))
+			return false;
+		skip_spaces(input, position);
+		if (position >= input.size() || input[position] != ':')
+			return false;
+		++position;
+		skip_spaces(input, position);
+		if (!parse_double_token(input, position, parsed_inches))
+			return false;
+		skip_spaces(input, position);
+		if (position != input.size())
+			return false;
+		feet = parsed_feet + (parsed_inches / INCHES_PER_FOOT);
+		return true;
+	}
+
+	if (!parse_double_token(input, position, parsed_feet))
+		return false;
+	skip_spaces(input, position);
+	if (position == input.size()) {
+		feet = parsed_feet;
+		return true;
+	}
+
+	if (!parse_feet_unit(input, position))
+		return false;
+	skip_spaces(input, position);
+	if (position == input.size()) {
+		feet = parsed_feet;
+		return true;
+	}
+
+	if (!parse_double_token(input, position, parsed_inches))
+		return false;
+	skip_spaces(input, position);
+	if (!parse_inches_unit(input, position))
+		return false;
+	skip_spaces(input, position);
+	if (position != input.size())
+		return false;
+
+	feet = parsed_feet + (parsed_inches / INCHES_PER_FOOT);
+
+	return true;
 }
 
 std::string

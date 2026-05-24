@@ -49,6 +49,7 @@
 #include <QStatusBar>
 #include <QTabWidget>
 #include <QTextEdit>
+#include <QValidator>
 #include <QVBoxLayout>
 #include <QCloseEvent>
 #include <QDateTime>
@@ -58,6 +59,89 @@
 namespace qantcal {
 
 namespace {
+
+class LengthSpinBox : public QDoubleSpinBox {
+public:
+	explicit LengthSpinBox(QWidget *parent = nullptr)
+		: QDoubleSpinBox(parent)
+	{
+	}
+
+	void set_length_unit(calculators::LengthUnit unit)
+	{
+		length_unit = unit;
+	}
+
+protected:
+	QString textFromValue(double value) const override
+	{
+		if (length_unit == calculators::LengthUnit::FeetInches)
+			return QString::number(value, 'f', decimals());
+
+		return QDoubleSpinBox::textFromValue(value);
+	}
+
+	QValidator::State validate(QString &text, int &pos) const override
+	{
+		if (length_unit != calculators::LengthUnit::FeetInches)
+			return QDoubleSpinBox::validate(text, pos);
+
+		const QString cleaned = cleaned_feet_inches_text(text);
+		double feet = 0.0;
+
+		if (cleaned.isEmpty())
+			return QValidator::Intermediate;
+		if (calculators::parse_feet_inches(cleaned.toStdString(), feet) && feet >= minimum() && feet <= maximum())
+			return QValidator::Acceptable;
+		if (has_only_feet_inches_characters(cleaned))
+			return QValidator::Intermediate;
+
+		return QValidator::Invalid;
+	}
+
+	double valueFromText(const QString &text) const override
+	{
+		if (length_unit == calculators::LengthUnit::FeetInches) {
+			double feet = 0.0;
+
+			if (calculators::parse_feet_inches(cleaned_feet_inches_text(text).toStdString(), feet))
+				return feet;
+		}
+
+		return QDoubleSpinBox::valueFromText(text);
+	}
+
+private:
+	static QString cleaned_feet_inches_text(const QString &text)
+	{
+		QString cleaned = text.trimmed();
+		const QString suffix_text = QStringLiteral("ft");
+
+		if (cleaned.endsWith(suffix_text, Qt::CaseInsensitive))
+			cleaned.chop(suffix_text.size());
+		if (cleaned.endsWith(QStringLiteral("feet"), Qt::CaseInsensitive))
+			cleaned.chop(4);
+
+		return cleaned.trimmed();
+	}
+
+	static bool has_only_feet_inches_characters(const QString &text)
+	{
+		for (const QChar &character : text) {
+			if (character.isDigit() || character.isSpace())
+				continue;
+			if (character == QChar('.') || character == QChar(':') || character == QChar('\'') || character == QChar('"'))
+				continue;
+			if (QStringLiteral("efhintoc").contains(character, Qt::CaseInsensitive))
+				continue;
+			return false;
+		}
+
+		return true;
+	}
+
+	calculators::LengthUnit length_unit = calculators::LengthUnit::Metres;
+};
 
 QString
 result_to_text(const calculators::AntennaCalculationResult &result, calculators::LengthUnit length_unit)
@@ -234,6 +318,9 @@ MainWindow::MainWindow(QWidget *parent)
 void
 MainWindow::calculate()
 {
+	if (length_box != nullptr)
+		length_box->interpretText();
+
 	if (static_cast<calculators::AntennaType>(antenna_type_box->currentData().toInt()) == calculators::AntennaType::Yagi) {
 		calculate_yagi();
 		return;
@@ -268,6 +355,9 @@ MainWindow::calculate()
 void
 MainWindow::change_length_unit(int index)
 {
+	if (length_box != nullptr)
+		length_box->interpretText();
+
 	const calculators::LengthUnit new_unit = static_cast<calculators::LengthUnit>(length_unit_box->itemData(index).toInt());
 	const double length_m = calculators::length_unit_to_metres(length_box->value(), current_length_unit);
 	const double yagi_diameter_m = calculators::length_unit_to_metres(yagi_element_diameter_box->value(), current_length_unit);
@@ -346,6 +436,8 @@ MainWindow::change_length_unit(int index)
 void
 MainWindow::configure_length_input()
 {
+	static_cast<LengthSpinBox *>(length_box)->set_length_unit(current_length_unit);
+
 	switch (current_length_unit) {
 	case calculators::LengthUnit::Millimetres:
 		length_box->setRange(1.0, 10000000.0);
@@ -366,7 +458,6 @@ MainWindow::configure_length_input()
 		length_box->setSuffix(QStringLiteral(" m"));
 		break;
 	case calculators::LengthUnit::FeetInches:
-		/* TODO: Add richer parsing for values such as 33 ft 6 in, 33' 6", or 33:6. */
 		length_box->setRange(0.001, calculators::metres_to_feet(10000.0));
 		length_box->setDecimals(3);
 		length_box->setSingleStep(1.0);
@@ -500,7 +591,7 @@ MainWindow::create_antenna_tab(QTabWidget *tabs)
 	length_unit_box = new QComboBox(input_group);
 	project_title_box = new QLineEdit(input_group);
 	frequency_box = new QDoubleSpinBox(input_group);
-	length_box = new QDoubleSpinBox(input_group);
+	length_box = new LengthSpinBox(input_group);
 	velocity_factor_box = new QDoubleSpinBox(input_group);
 	project_notes_edit = new QTextEdit(input_group);
 	calculate_button = new QPushButton(QStringLiteral("Calculate"), input_group);
@@ -512,7 +603,7 @@ MainWindow::create_antenna_tab(QTabWidget *tabs)
 	set_widget_hint(design_mode_box, QStringLiteral("Design mode"), QStringLiteral("Chooses whether to calculate length from frequency or frequency from length."));
 	set_widget_hint(length_unit_box, QStringLiteral("Length unit"), QStringLiteral("Sets the displayed unit for antenna dimensions."));
 	set_widget_hint(frequency_box, QStringLiteral("Frequency"), QStringLiteral("Design frequency in MHz."));
-	set_widget_hint(length_box, QStringLiteral("Wire or element length"), QStringLiteral("Existing wire or element length used for length to frequency mode."));
+	set_widget_hint(length_box, QStringLiteral("Wire or element length"), QStringLiteral("Existing wire or element length used for length to frequency mode. Feet/inches accepts formats such as 33 ft 6 in, 33' 6\", and 33:6."));
 	set_widget_hint(velocity_factor_box, QStringLiteral("Shortening factor"), QStringLiteral("Velocity or shortening factor applied to calculated wire length."));
 	set_widget_hint(project_notes_edit, QStringLiteral("Project notes"), QStringLiteral("Optional notes saved with the antenna project."));
 	set_widget_hint(calculate_button, QStringLiteral("Calculate antenna"), QStringLiteral("Updates the antenna calculation and diagram."));

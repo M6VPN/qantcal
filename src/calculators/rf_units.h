@@ -28,6 +28,7 @@ double mhz_to_hz(double mhz);
 LengthUnit length_unit_from_key(const std::string &key);
 std::string length_unit_key(LengthUnit unit);
 std::string length_unit_label(LengthUnit unit);
+bool parse_feet_inches(const std::string &text, double &feet);
 std::string format_meters(double value);
 std::string format_mhz(double value);
 

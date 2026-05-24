@@ -58,6 +58,57 @@ test_millimetres()
 }
 
 void
+test_parse_feet_inches_colon()
+{
+	double feet = 0.0;
+
+	assert(qantcal::calculators::parse_feet_inches("33:6", feet));
+	assert(near_value(feet, 33.5, 0.000001));
+}
+
+void
+test_parse_feet_inches_decimal()
+{
+	double feet = 0.0;
+
+	assert(qantcal::calculators::parse_feet_inches("33.5", feet));
+	assert(near_value(feet, 33.5, 0.000001));
+}
+
+void
+test_parse_feet_inches_invalid()
+{
+	double feet = 0.0;
+
+	assert(!qantcal::calculators::parse_feet_inches("", feet));
+	assert(!qantcal::calculators::parse_feet_inches("33 metres", feet));
+	assert(!qantcal::calculators::parse_feet_inches("33 ft six in", feet));
+	assert(!qantcal::calculators::parse_feet_inches("-33 ft 6 in", feet));
+}
+
+void
+test_parse_feet_inches_symbols()
+{
+	double feet = 0.0;
+
+	assert(qantcal::calculators::parse_feet_inches("33' 6\"", feet));
+	assert(near_value(feet, 33.5, 0.000001));
+	assert(qantcal::calculators::parse_feet_inches("33'6\"", feet));
+	assert(near_value(feet, 33.5, 0.000001));
+}
+
+void
+test_parse_feet_inches_words()
+{
+	double feet = 0.0;
+
+	assert(qantcal::calculators::parse_feet_inches("33 ft 6 in", feet));
+	assert(near_value(feet, 33.5, 0.000001));
+	assert(qantcal::calculators::parse_feet_inches("33 feet 6 inches", feet));
+	assert(near_value(feet, 33.5, 0.000001));
+}
+
+void
 test_selected_unit_formatting_for_dipole()
 {
 	qantcal::calculators::AntennaCalculationInput input;
@@ -87,6 +138,11 @@ main()
 	test_inches_to_metres();
 	test_metres_to_feet();
 	test_millimetres();
+	test_parse_feet_inches_colon();
+	test_parse_feet_inches_decimal();
+	test_parse_feet_inches_invalid();
+	test_parse_feet_inches_symbols();
+	test_parse_feet_inches_words();
 	test_selected_unit_formatting_for_dipole();
 
 	return 0;
