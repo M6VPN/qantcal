@@ -18,6 +18,8 @@ add_library(qantcal_core
 	calculators/lc_resonance_calculator.h
 	calculators/loading_coil_calculator.cpp
 	calculators/loading_coil_calculator.h
+	calculators/matching_network_calculator.cpp
+	calculators/matching_network_calculator.h
 	calculators/radio_horizon_calculator.cpp
 	calculators/radio_horizon_calculator.h
 	calculators/rf_units.cpp

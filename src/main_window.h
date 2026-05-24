@@ -48,6 +48,7 @@ private:
 	void create_rf_calculators_tab(QTabWidget *tabs);
 	void export_pdf();
 	void calculate_choke();
+	void calculate_matching_network();
 	void calculate_yagi();
 	void calculate_lf_mf();
 	void calculate_lf_mf(bool update_project);
@@ -127,6 +128,9 @@ private:
 	QDoubleSpinBox *lf_mf_frequency_box = nullptr;
 	QDoubleSpinBox *lf_mf_horizontal_box = nullptr;
 	QDoubleSpinBox *lf_mf_vertical_box = nullptr;
+	QDoubleSpinBox *matching_frequency_box = nullptr;
+	QDoubleSpinBox *matching_load_resistance_box = nullptr;
+	QDoubleSpinBox *matching_source_resistance_box = nullptr;
 	QDoubleSpinBox *swr_forward_power_box = nullptr;
 	QDoubleSpinBox *swr_value_box = nullptr;
 	QDoubleSpinBox *trap_capacitance_box = nullptr;
@@ -149,6 +153,7 @@ private:
 	QTextEdit *horizon_result_text = nullptr;
 	QTextEdit *lc_result_text = nullptr;
 	QTextEdit *lf_mf_result_text = nullptr;
+	QTextEdit *matching_result_text = nullptr;
 	QTextEdit *project_notes_edit = nullptr;
 	QTextEdit *reference_text = nullptr;
 	QTextEdit *reach_text = nullptr;

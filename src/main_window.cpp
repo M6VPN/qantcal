@@ -8,6 +8,7 @@
 #include "calculators/coax_loss_calculator.h"
 #include "calculators/lf_mf_antenna_calculator.h"
 #include "calculators/lc_resonance_calculator.h"
+#include "calculators/matching_network_calculator.h"
 #include "calculators/radio_horizon_calculator.h"
 #include "calculators/rf_units.h"
 #include "calculators/swr_calculator.h"
@@ -845,7 +846,7 @@ MainWindow::create_rf_calculators_tab(QTabWidget *tabs)
 	QTabWidget *rf_tabs = new QTabWidget(rf_tab);
 
 	rf_tabs->setAccessibleName(QStringLiteral("RF calculator tabs"));
-	rf_tabs->setAccessibleDescription(QStringLiteral("Switches between coil, coax, choke, LC, trap, SWR, and radio horizon calculators."));
+	rf_tabs->setAccessibleDescription(QStringLiteral("Switches between coil, coax, choke, matching, LC, trap, SWR, and radio horizon calculators."));
 
 	QWidget *coil_tab = new QWidget(rf_tabs);
 	QFormLayout *coil_layout = new QFormLayout(coil_tab);
@@ -924,6 +925,26 @@ MainWindow::create_rf_calculators_tab(QTabWidget *tabs)
 	choke_layout->addRow(choke_button);
 	choke_layout->addRow(choke_result_text);
 	rf_tabs->addTab(create_scroll_area(choke_tab, rf_tabs, QStringLiteral("RF choke input area")), QStringLiteral("RF choke"));
+
+	QWidget *matching_tab = new QWidget(rf_tabs);
+	QFormLayout *matching_layout = new QFormLayout(matching_tab);
+	QPushButton *matching_button = new QPushButton(QStringLiteral("Calculate"), matching_tab);
+	matching_frequency_box = create_positive_spin_box(matching_tab, 300000.0, 6, QStringLiteral(" MHz"), 14.2);
+	matching_source_resistance_box = create_positive_spin_box(matching_tab, 1000000.0, 3, QStringLiteral(" ohms"), 50.0);
+	matching_load_resistance_box = create_positive_spin_box(matching_tab, 1000000.0, 3, QStringLiteral(" ohms"), 200.0);
+	matching_result_text = new QTextEdit(matching_tab);
+	configure_form_layout(matching_layout);
+	set_widget_hint(matching_frequency_box, QStringLiteral("Matching frequency"), QStringLiteral("Operating frequency in MHz."));
+	set_widget_hint(matching_source_resistance_box, QStringLiteral("Source resistance"), QStringLiteral("Purely resistive source resistance in ohms."));
+	set_widget_hint(matching_load_resistance_box, QStringLiteral("Load resistance"), QStringLiteral("Purely resistive load resistance in ohms."));
+	set_widget_hint(matching_button, QStringLiteral("Calculate matching network"), QStringLiteral("Updates first-pass L-network matching values."));
+	configure_result_text(matching_result_text, QStringLiteral("Matching network results"), QStringLiteral("Shows L-network values, notes, and warnings."));
+	matching_layout->addRow(QStringLiteral("Frequency"), matching_frequency_box);
+	matching_layout->addRow(QStringLiteral("Source resistance"), matching_source_resistance_box);
+	matching_layout->addRow(QStringLiteral("Load resistance"), matching_load_resistance_box);
+	matching_layout->addRow(matching_button);
+	matching_layout->addRow(matching_result_text);
+	rf_tabs->addTab(create_scroll_area(matching_tab, rf_tabs, QStringLiteral("Matching network input area")), QStringLiteral("Matching"));
 
 	QWidget *lc_tab = new QWidget(rf_tabs);
 	QFormLayout *lc_layout = new QFormLayout(lc_tab);
@@ -1009,6 +1030,7 @@ MainWindow::create_rf_calculators_tab(QTabWidget *tabs)
 	connect(coil_button, &QPushButton::clicked, this, &MainWindow::calculate_coil);
 	connect(choke_button, &QPushButton::clicked, this, &MainWindow::calculate_choke);
 	connect(coax_button, &QPushButton::clicked, this, &MainWindow::calculate_coax_loss);
+	connect(matching_button, &QPushButton::clicked, this, &MainWindow::calculate_matching_network);
 	connect(lc_button, &QPushButton::clicked, this, &MainWindow::calculate_lc);
 	connect(trap_button, &QPushButton::clicked, this, &MainWindow::calculate_trap);
 	connect(swr_button, &QPushButton::clicked, this, &MainWindow::calculate_swr);
@@ -1017,6 +1039,7 @@ MainWindow::create_rf_calculators_tab(QTabWidget *tabs)
 	calculate_coil();
 	calculate_choke();
 	calculate_coax_loss();
+	calculate_matching_network();
 	calculate_lc();
 	calculate_trap();
 	calculate_swr();
@@ -1667,6 +1690,49 @@ MainWindow::calculate_choke()
 		text += QStringLiteral("\n\nWarnings:\n%1").arg(result.warnings.join(QStringLiteral("\n")));
 
 	choke_result_text->setPlainText(text);
+}
+
+void
+MainWindow::calculate_matching_network()
+{
+	if (matching_result_text == nullptr)
+		return;
+
+	calculators::MatchingNetworkInput input;
+
+	input.frequency_mhz = matching_frequency_box->value();
+	input.source_resistance_ohms = matching_source_resistance_box->value();
+	input.load_resistance_ohms = matching_load_resistance_box->value();
+
+	const calculators::MatchingNetworkResult result = calculators::calculate_matching_network(input);
+	if (!result.ok) {
+		matching_result_text->setPlainText(QStringLiteral("Input error: %1").arg(result.error_message));
+		return;
+	}
+
+	if (result.no_network_needed) {
+		matching_result_text->setPlainText(result.note);
+		return;
+	}
+
+	QString text;
+	text += QStringLiteral("Resistance ratio: %1:1\n").arg(result.ratio, 0, 'f', 3);
+	text += QStringLiteral("Loaded Q: %1\n").arg(result.q, 0, 'f', 3);
+	text += QStringLiteral("Low-resistance side: %1 (%2 ohms)\n").arg(result.low_side_label).arg(result.low_resistance_ohms, 0, 'f', 3);
+	text += QStringLiteral("High-resistance side: %1 (%2 ohms)\n").arg(result.high_side_label).arg(result.high_resistance_ohms, 0, 'f', 3);
+	text += QStringLiteral("Series reactance: %1 ohms\n").arg(result.series_reactance_ohms, 0, 'f', 3);
+	text += QStringLiteral("Shunt reactance: %1 ohms\n").arg(result.shunt_reactance_ohms, 0, 'f', 3);
+	text += QStringLiteral("\nLow-pass L-network:\n");
+	text += QStringLiteral("Series inductor on low side: %1 uH\n").arg(result.low_pass_series_inductance_uh, 0, 'f', 6);
+	text += QStringLiteral("Shunt capacitor across high side: %1 pF\n").arg(result.low_pass_shunt_capacitance_pf, 0, 'f', 3);
+	text += QStringLiteral("\nHigh-pass L-network:\n");
+	text += QStringLiteral("Series capacitor on low side: %1 pF\n").arg(result.high_pass_series_capacitance_pf, 0, 'f', 3);
+	text += QStringLiteral("Shunt inductor across high side: %1 uH\n").arg(result.high_pass_shunt_inductance_uh, 0, 'f', 6);
+	text += QStringLiteral("\n%1").arg(result.note);
+	if (!result.warnings.isEmpty())
+		text += QStringLiteral("\n\nWarnings:\n%1").arg(result.warnings.join(QStringLiteral("\n")));
+
+	matching_result_text->setPlainText(text);
 }
 
 void

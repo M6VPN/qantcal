@@ -61,6 +61,10 @@ add_executable(test_loading_coil_calculator
 	test_loading_coil_calculator.cpp
 )
 
+add_executable(test_matching_network_calculator
+	test_matching_network_calculator.cpp
+)
+
 add_executable(test_mode_reference
 	test_mode_reference.cpp
 )
@@ -172,6 +176,11 @@ target_link_libraries(test_main_window_layout
 )
 
 target_link_libraries(test_loading_coil_calculator
+	PRIVATE
+		qantcal_core
+)
+
+target_link_libraries(test_matching_network_calculator
 	PRIVATE
 		qantcal_core
 )
@@ -302,6 +311,11 @@ add_test(
 )
 
 add_test(
+	NAME test_matching_network_calculator
+	COMMAND test_matching_network_calculator
+)
+
+add_test(
 	NAME test_mode_reference
 	COMMAND test_mode_reference
 )
@@ -367,6 +381,7 @@ set_tests_properties(
 	test_lf_mf_reference
 	test_main_window_layout
 	test_loading_coil_calculator
+	test_matching_network_calculator
 	test_mode_reference
 	test_propagation_notes
 	test_radio_horizon_calculator
