@@ -5,6 +5,7 @@
 
 #include "calculators/antenna_calculator.h"
 #include "design/antenna_design_scene.h"
+#include "settings/translation_manager.h"
 
 #include <QApplication>
 #include <QComboBox>
@@ -89,6 +90,14 @@ test_read_only_outputs_have_accessible_names(const qantcal::MainWindow &window)
 }
 
 void
+test_russian_menu_translation_loads()
+{
+	assert(qantcal::settings::apply_language(QStringLiteral("ru_RU")));
+	assert(QCoreApplication::translate("qantcal::MainWindow", "&File") == QStringLiteral("&Файл"));
+	qantcal::settings::apply_language(QStringLiteral("en"));
+}
+
+void
 test_scroll_areas_are_present(const qantcal::MainWindow &window)
 {
 	const QList<QScrollArea *> scroll_areas = window.findChildren<QScrollArea *>();
@@ -125,6 +134,7 @@ main(int argc, char *argv[])
 	qantcal::MainWindow window;
 
 	test_folded_dipole_scene_uses_folded_path();
+	test_russian_menu_translation_loads();
 	process_resize(window, 800, 600);
 	test_antenna_selector_contains_folded_dipole(window);
 	test_help_menu_is_final(window);

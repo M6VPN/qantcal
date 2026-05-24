@@ -4,7 +4,7 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="ru_RU">
 <context>
-	<name>MainWindow</name>
+	<name>qantcal::MainWindow</name>
 	<message>
 		<source>&amp;File</source>
 		<translation>&amp;Файл</translation>
