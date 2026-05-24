@@ -248,7 +248,7 @@ jobs:
           if-no-files-found: error
 
   publish-draft:
-    name: Draft prerelease
+    name: Create or update prerelease
     runs-on: ubuntu-24.04
     needs:
       - linux-appimage
@@ -288,14 +288,14 @@ jobs:
           - Report packaging issues at https://github.com/M6VPN/qantcal/issues.
           NOTES
 
-      - name: Create or update draft prerelease
+      - name: Create or update prerelease
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           find release-artifacts -maxdepth 2 -type f | sort
           if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
             gh release upload "${RELEASE_TAG}" release-artifacts/* --clobber
-            gh release edit "${RELEASE_TAG}" --draft=true --prerelease --title "qantcal ${RELEASE_VERSION}" --notes-file release-notes.md
+            gh release edit "${RELEASE_TAG}" --prerelease --title "qantcal ${RELEASE_VERSION}" --notes-file release-notes.md
           else
             gh release create "${RELEASE_TAG}" release-artifacts/* --draft --prerelease --title "qantcal ${RELEASE_VERSION}" --notes-file release-notes.md
           fi
