@@ -38,6 +38,7 @@ docker run --rm \
 				dpkg-dev \
 				file \
 				git \
+				libgl1-mesa-dev \
 				ninja-build \
 				qt6-base-dev \
 				qt6-base-dev-tools \
@@ -89,6 +90,7 @@ docker run --rm \
 		else
 			cpack --config "${BUILD_DIR}/CPackConfig.cmake" -G "${GENERATOR}" -B "${ARTIFACT_DIR}"
 			for artifact in "${ARTIFACT_DIR}"/*; do
+				[ -f "${artifact}" ] || continue
 				extension="${artifact##*.}"
 				cp -v "${artifact}" "${OUTPUT_DIR}/qantcal-${LABEL}.${extension}"
 			done

@@ -146,11 +146,11 @@ jobs:
             platform: linux/arm64
             label: 0.1.0-alpha.1-fedora-latest-aarch64
           - name: rocky-latest-x86_64
-            image: rockylinux/rockylinux:latest
+            image: rockylinux/rockylinux:10
             platform: linux/amd64
             label: 0.1.0-alpha.1-rocky-latest-x86_64
           - name: rocky-latest-aarch64
-            image: rockylinux/rockylinux:latest
+            image: rockylinux/rockylinux:10
             platform: linux/arm64
             label: 0.1.0-alpha.1-rocky-latest-aarch64
 
