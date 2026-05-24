@@ -73,6 +73,11 @@ target_include_directories(qantcal_core
 		${CMAKE_CURRENT_SOURCE_DIR}
 )
 
+target_compile_definitions(qantcal_core
+	PUBLIC
+		QANTCAL_VERSION="${QANTCAL_DISPLAY_VERSION}"
+)
+
 target_link_libraries(qantcal_core
 	PUBLIC
 		Qt6::Core

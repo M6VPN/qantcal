@@ -1,6 +1,19 @@
 # Packaging qantcal
 
-qantcal does not have installers yet.
+qantcal does not have installers yet. The first alpha release should be a source release with verified CMake install staging.
+
+## First Alpha Release Gate
+
+Before tagging the first alpha:
+
+- build with the `release` preset
+- run the full test suite with Qt offscreen enabled
+- run `cmake --install` into a clean staging prefix
+- confirm the staged `qantcal` executable starts on the target platform
+- confirm `docs/`, `BUILDING.md`, `README.md`, and `LICENSE` are installed
+- confirm translation catalogs are installed when `lrelease` is available
+- export at least one antenna guide PDF and inspect the diagram
+- note that packaged Qt runtime deployment is not included yet
 
 ## CMake Install
 
@@ -39,4 +52,4 @@ For now, build from source using packages or ports for CMake, a C++17 compiler, 
 
 ## Release Automation
 
-qantcal does not publish release artifacts from CI yet.
+CI verifies build, tests, and CMake install staging on Linux and Windows. It does not publish release artifacts yet.

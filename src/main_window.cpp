@@ -33,6 +33,7 @@
 #include <QActionGroup>
 #include <QCheckBox>
 #include <QComboBox>
+#include <QCoreApplication>
 #include <QDir>
 #include <QDoubleSpinBox>
 #include <QFile>
@@ -1551,7 +1552,7 @@ MainWindow::update_tropo_map(bool force_refresh)
 
 	tropo_status_label->setText(QStringLiteral("Downloading: %1").arg(url.toString()));
 	QNetworkRequest request(url);
-	request.setRawHeader("User-Agent", "qantcal/0.1");
+	request.setRawHeader("User-Agent", QByteArrayLiteral("qantcal/") + QByteArrayLiteral(QANTCAL_VERSION));
 	QNetworkReply *reply = tropo_network_manager->get(request);
 
 	connect(reply, &QNetworkReply::finished, this, [this, reply, cache_path, source_page, url]() {
@@ -2616,10 +2617,14 @@ MainWindow::save_shortening_factor()
 void
 MainWindow::show_about()
 {
+	const QString version = QCoreApplication::applicationVersion().isEmpty()
+		? QStringLiteral(QANTCAL_VERSION)
+		: QCoreApplication::applicationVersion();
+
 	QMessageBox::about(
 		this,
-		QStringLiteral("About qantcal"),
-		QStringLiteral("qantcal\n\nEarly Qt6 scaffold for amateur radio antenna calculation, design diagrams, and printable guides.")
+		tr("About qantcal"),
+		tr("qantcal %1\n\nAlpha Qt6 desktop application for amateur radio antenna calculation, design diagrams, and printable guides.").arg(version)
 	);
 }
 

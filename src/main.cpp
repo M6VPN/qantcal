@@ -16,6 +16,7 @@ main(int argc, char *argv[])
 
 	QCoreApplication::setOrganizationName(QStringLiteral("M6VPN"));
 	QCoreApplication::setApplicationName(QStringLiteral("qantcal"));
+	QCoreApplication::setApplicationVersion(QStringLiteral(QANTCAL_VERSION));
 	qantcal::settings::apply_language(app_settings.language_code());
 
 	qantcal::MainWindow window;

@@ -37,6 +37,11 @@ jobs:
       - name: Test
         run: ctest --test-dir build/ci-debug --output-on-failure
 
+      - name: Install smoke
+        run: |
+          cmake --install build/ci-debug --prefix "$PWD/package-root"
+          test -x package-root/bin/qantcal
+
   windows:
     name: Windows
     runs-on: windows-latest
@@ -73,3 +78,8 @@ jobs:
 
       - name: Test
         run: ctest --test-dir build/ci-debug --output-on-failure
+
+      - name: Install smoke
+        run: |
+          cmake --install build/ci-debug --prefix "$PWD/package-root"
+          test -x package-root/bin/qantcal.exe
