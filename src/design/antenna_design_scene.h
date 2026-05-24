@@ -5,6 +5,7 @@
 #define QANTCAL_DESIGN_ANTENNA_DESIGN_SCENE_H
 
 #include "calculators/antenna_calculator.h"
+#include "calculators/lf_mf_antenna_calculator.h"
 #include "calculators/rf_units.h"
 #include "calculators/yagi_calculator.h"
 #include "project/antenna_project.h"
@@ -33,6 +34,11 @@ public:
 	);
 	void show_yagi_diagram(
 		const calculators::YagiDesignResult &result,
+		calculators::LengthUnit length_unit
+	);
+	void show_lf_mf_diagram(
+		const calculators::LfMfAntennaResult &result,
+		calculators::LfMfDesignType design_type,
 		calculators::LengthUnit length_unit
 	);
 	void render_to_painter(QPainter &painter, const QRectF &target_rect);

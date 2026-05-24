@@ -151,6 +151,38 @@ append_propagation_sections(GuideDocument &document, const project::AntennaProje
 	}
 }
 
+void
+append_lf_mf_section(GuideDocument &document, const project::AntennaProject &project, calculators::LengthUnit length_unit)
+{
+	if (!project.lf_mf_design.enabled)
+		return;
+
+	const project::LfMfProjectDesign &design = project.lf_mf_design;
+	QString body;
+
+	body += QStringLiteral("Band: %1\nService: %2\nCategory: %3\nFrequency: %4 kHz (%5 MHz)\nDesign type: %6\n")
+		.arg(design.band_name)
+		.arg(reference::band_service_label(design.band_service))
+		.arg(design.category)
+		.arg(design.frequency_mhz * 1000.0, 0, 'f', 3)
+		.arg(design.frequency_mhz, 0, 'f', 6)
+		.arg(calculators::lf_mf_design_type_label(design.design_type));
+	body += QStringLiteral("Vertical height: %1\nHorizontal/top wire: %2\n")
+		.arg(QString::fromStdString(calculators::format_length(design.vertical_height_metres, length_unit)))
+		.arg(QString::fromStdString(calculators::format_length(design.horizontal_or_top_length_metres, length_unit)));
+	if (design.has_estimated_capacitance)
+		body += QStringLiteral("Estimated capacitance: %1 pF\n").arg(design.estimated_capacitance_pf, 0, 'f', 2);
+	if (design.has_calculated_loading_inductance)
+		body += QStringLiteral("Approximate loading inductance: %1 uH\n").arg(design.calculated_loading_inductance_uh, 0, 'f', 2);
+	if (design.receive_only)
+		body += QStringLiteral("Receive only: yes\n");
+	body += QStringLiteral("\nLF/MF limitations: qantcal does not calculate efficiency, ERP/EIRP, field strength, radiation resistance, bandwidth, Q, or matching-network performance. Ground/counterpoise loss and loading-coil losses can dominate real systems.");
+	body += QStringLiteral("\nSafety: high RF voltages can appear across loading coils and antenna ends. Loaded LF/MF antennas can have narrow bandwidth. Outdoor antennas require safe supports, weatherproofing, lightning/static precautions, and legal siting.");
+	body += QStringLiteral("\nLegal: these dimensions are for receive antennas or legally authorised amateur, broadcast, or experimental use only. qantcal does not grant authority to transmit.");
+
+	document.sections.append(make_text_section(QStringLiteral("LF/MF antenna guidance"), body, true));
+}
+
 }
 
 GuideDocument
@@ -299,6 +331,7 @@ create_project_guide_document(
 		));
 	}
 	document.sections.append(make_text_section(QStringLiteral("Diagram"), QStringLiteral("Diagram snapshot is rendered from the current design canvas.")));
+	append_lf_mf_section(document, project, length_unit);
 	append_propagation_sections(document, project, length_unit);
 	append_standard_sections(document);
 

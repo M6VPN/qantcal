@@ -31,6 +31,7 @@ Progress:
 - printable PDF export with project sections, assumptions, and safety notes
 - RF helper calculators for air-core coils, LC resonance, SWR/reflected power, and radio horizon
 - amateur band, broadcast/reference band, and cautious propagation notes
+- LF/MF antenna guidance for full-size references, loaded verticals, top-loaded antennas, and receive-only compact antennas
 - a small pure C++ calculator test executable
 
 ## Screenshots

@@ -5,6 +5,7 @@
 #define QANTCAL_PROJECT_ANTENNA_PROJECT_H
 
 #include "calculators/antenna_calculator.h"
+#include "calculators/lf_mf_antenna_calculator.h"
 #include "calculators/rf_units.h"
 #include "calculators/yagi_calculator.h"
 #include "reference/band_reference.h"
@@ -65,6 +66,22 @@ struct PropagationProjectSettings {
 	bool has_power_watts = false;
 };
 
+struct LfMfProjectDesign {
+	bool enabled = false;
+	calculators::LfMfDesignType design_type = calculators::LfMfDesignType::FullSizeReference;
+	QString band_name;
+	QString category;
+	reference::BandService band_service = reference::BandService::Unknown;
+	double frequency_mhz = 0.0;
+	double vertical_height_metres = 0.0;
+	double horizontal_or_top_length_metres = 0.0;
+	double estimated_capacitance_pf = 0.0;
+	bool has_estimated_capacitance = false;
+	double calculated_loading_inductance_uh = 0.0;
+	bool has_calculated_loading_inductance = false;
+	bool receive_only = false;
+};
+
 struct AntennaProject {
 	QString created_utc;
 	QString notes;
@@ -73,6 +90,7 @@ struct AntennaProject {
 	QVector<AntennaElement> elements;
 	QVector<AntennaTarget> targets;
 	QVector<DiagramItemDescriptor> diagram_items;
+	LfMfProjectDesign lf_mf_design;
 	YagiProjectDesign yagi_design;
 	PropagationProjectSettings propagation_settings;
 	calculators::AntennaType antenna_type = calculators::AntennaType::HalfWaveDipole;

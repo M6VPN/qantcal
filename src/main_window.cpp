@@ -4,6 +4,7 @@
 #include "main_window.h"
 
 #include "calculators/coil_calculator.h"
+#include "calculators/lf_mf_antenna_calculator.h"
 #include "calculators/lc_resonance_calculator.h"
 #include "calculators/radio_horizon_calculator.h"
 #include "calculators/rf_units.h"
@@ -14,6 +15,7 @@
 #include "guides/guide_renderer.h"
 #include "project/project_file_io.h"
 #include "reference/band_reference.h"
+#include "reference/lf_mf_reference.h"
 #include "reference/mode_reference.h"
 #include "reference/propagation_notes.h"
 #include "reference/reach_estimator.h"
@@ -221,9 +223,16 @@ MainWindow::change_length_unit(int index)
 	const double propagation_rx_height_m = propagation_rx_height_box != nullptr
 		? calculators::length_unit_to_metres(propagation_rx_height_box->value(), current_length_unit)
 		: 0.0;
+	const double lf_mf_vertical_m = lf_mf_vertical_box != nullptr
+		? calculators::length_unit_to_metres(lf_mf_vertical_box->value(), current_length_unit)
+		: 0.0;
+	const double lf_mf_horizontal_m = lf_mf_horizontal_box != nullptr
+		? calculators::length_unit_to_metres(lf_mf_horizontal_box->value(), current_length_unit)
+		: 0.0;
 
 	current_length_unit = new_unit;
 	configure_length_input();
+	update_lf_mf_length_inputs();
 
 	{
 		const QSignalBlocker blocker(length_box);
@@ -248,12 +257,23 @@ MainWindow::change_length_unit(int index)
 			propagation_rx_height_box->setValue(calculators::metres_to_length_unit(propagation_rx_height_m, current_length_unit));
 		}
 	}
+	if (lf_mf_vertical_box != nullptr && lf_mf_horizontal_box != nullptr) {
+		{
+			const QSignalBlocker blocker(lf_mf_vertical_box);
+			lf_mf_vertical_box->setValue(calculators::metres_to_length_unit(lf_mf_vertical_m, current_length_unit));
+		}
+		{
+			const QSignalBlocker blocker(lf_mf_horizontal_box);
+			lf_mf_horizontal_box->setValue(calculators::metres_to_length_unit(lf_mf_horizontal_m, current_length_unit));
+		}
+	}
 
 	app_settings.set_length_unit(current_length_unit);
 	current_project.preferred_length_unit = current_length_unit;
 	mark_project_dirty();
 	calculate();
 	update_reference_panel();
+	calculate_lf_mf();
 	statusBar()->showMessage(
 		QStringLiteral("Length unit set to %1")
 			.arg(QString::fromStdString(calculators::length_unit_label(current_length_unit)))
@@ -301,6 +321,7 @@ MainWindow::configure_length_input()
 	yagi_element_diameter_box->setSingleStep(length_box->singleStep());
 	yagi_boom_correction_box->setSingleStep(length_box->singleStep());
 	update_reference_height_inputs();
+	update_lf_mf_length_inputs();
 }
 
 void
@@ -367,6 +388,7 @@ MainWindow::create_central_widget()
 	QTabWidget *tabs = new QTabWidget(central);
 
 	create_antenna_tab(tabs);
+	create_lf_mf_tab(tabs);
 	create_rf_calculators_tab(tabs);
 	create_band_propagation_tab(tabs);
 
@@ -531,6 +553,71 @@ MainWindow::create_antenna_tab(QTabWidget *tabs)
 	connect(yagi_element_diameter_box, &QDoubleSpinBox::valueChanged, this, &MainWindow::mark_project_dirty_and_recalculate);
 	connect(yagi_preset_box, &QComboBox::currentIndexChanged, this, &MainWindow::mark_project_dirty_and_recalculate);
 	update_yagi_controls();
+}
+
+void
+MainWindow::create_lf_mf_tab(QTabWidget *tabs)
+{
+	QWidget *tab = new QWidget(tabs);
+	QVBoxLayout *root_layout = new QVBoxLayout(tab);
+	QFormLayout *input_layout = new QFormLayout();
+	QPushButton *calculate_lf_mf_button = new QPushButton(QStringLiteral("Calculate"), tab);
+
+	lf_mf_band_box = new QComboBox(tab);
+	lf_mf_design_type_box = new QComboBox(tab);
+	lf_mf_frequency_box = create_positive_spin_box(tab, 30.0, 6, QStringLiteral(" MHz"), 0.475);
+	lf_mf_vertical_box = create_positive_spin_box(tab, 10000000.0, 3, QString(), 10.0);
+	lf_mf_horizontal_box = create_positive_spin_box(tab, 10000000.0, 3, QString(), 20.0);
+	lf_mf_capacitance_box = create_positive_spin_box(tab, 1000000.0, 3, QStringLiteral(" pF"), 0.0);
+	lf_mf_result_text = new QTextEdit(tab);
+
+	for (const reference::BandReference &band : reference::lf_mf_band_references()) {
+		lf_mf_band_box->addItem(
+			QStringLiteral("%1 (%2, %3-%4 kHz)")
+				.arg(band.name)
+				.arg(reference::band_service_label(band.service))
+				.arg(band.lower_frequency_mhz * 1000.0, 0, 'f', 1)
+				.arg(band.upper_frequency_mhz * 1000.0, 0, 'f', 1),
+			band.design_frequency_mhz
+		);
+		lf_mf_band_box->setItemData(lf_mf_band_box->count() - 1, band.name, Qt::UserRole + 1);
+	}
+
+	lf_mf_design_type_box->addItem(calculators::lf_mf_design_type_label(calculators::LfMfDesignType::FullSizeReference), calculators::lf_mf_design_type_key(calculators::LfMfDesignType::FullSizeReference));
+	lf_mf_design_type_box->addItem(calculators::lf_mf_design_type_label(calculators::LfMfDesignType::ShortLoadedVertical), calculators::lf_mf_design_type_key(calculators::LfMfDesignType::ShortLoadedVertical));
+	lf_mf_design_type_box->addItem(calculators::lf_mf_design_type_label(calculators::LfMfDesignType::InvertedL), calculators::lf_mf_design_type_key(calculators::LfMfDesignType::InvertedL));
+	lf_mf_design_type_box->addItem(calculators::lf_mf_design_type_label(calculators::LfMfDesignType::TopLoadedT), calculators::lf_mf_design_type_key(calculators::LfMfDesignType::TopLoadedT));
+	lf_mf_design_type_box->addItem(calculators::lf_mf_design_type_label(calculators::LfMfDesignType::ReceiveOnlyCompact), calculators::lf_mf_design_type_key(calculators::LfMfDesignType::ReceiveOnlyCompact));
+
+	lf_mf_result_text->setReadOnly(true);
+	lf_mf_result_text->setFontFamily(QStringLiteral("monospace"));
+	update_lf_mf_length_inputs();
+
+	input_layout->addRow(QStringLiteral("Band"), lf_mf_band_box);
+	input_layout->addRow(QStringLiteral("Design type"), lf_mf_design_type_box);
+	input_layout->addRow(QStringLiteral("Frequency"), lf_mf_frequency_box);
+	input_layout->addRow(QStringLiteral("Vertical height"), lf_mf_vertical_box);
+	input_layout->addRow(QStringLiteral("Horizontal/top wire"), lf_mf_horizontal_box);
+	input_layout->addRow(QStringLiteral("Estimated capacitance"), lf_mf_capacitance_box);
+	input_layout->addRow(calculate_lf_mf_button);
+	root_layout->addLayout(input_layout);
+	root_layout->addWidget(lf_mf_result_text, 1);
+	tabs->addTab(tab, QStringLiteral("LF/MF Antennas"));
+
+	connect(calculate_lf_mf_button, &QPushButton::clicked, this, &MainWindow::mark_project_dirty_and_recalculate_lf_mf);
+	connect(lf_mf_band_box, &QComboBox::currentIndexChanged, this, [this](int index) {
+		const double frequency_mhz = lf_mf_band_box->itemData(index).toDouble();
+		if (frequency_mhz > 0.0)
+			lf_mf_frequency_box->setValue(frequency_mhz);
+		mark_project_dirty_and_recalculate_lf_mf();
+	});
+	connect(lf_mf_design_type_box, &QComboBox::currentIndexChanged, this, &MainWindow::mark_project_dirty_and_recalculate_lf_mf);
+	connect(lf_mf_frequency_box, &QDoubleSpinBox::valueChanged, this, &MainWindow::mark_project_dirty_and_recalculate_lf_mf);
+	connect(lf_mf_vertical_box, &QDoubleSpinBox::valueChanged, this, &MainWindow::mark_project_dirty_and_recalculate_lf_mf);
+	connect(lf_mf_horizontal_box, &QDoubleSpinBox::valueChanged, this, &MainWindow::mark_project_dirty_and_recalculate_lf_mf);
+	connect(lf_mf_capacitance_box, &QDoubleSpinBox::valueChanged, this, &MainWindow::mark_project_dirty_and_recalculate_lf_mf);
+
+	calculate_lf_mf(false);
 }
 
 void
@@ -824,6 +911,34 @@ MainWindow::apply_project_to_ui()
 			yagi_boom_correction_box->setValue(calculators::metres_to_length_unit(current_project.yagi_design.boom_correction_metres, current_project.preferred_length_unit));
 		}
 	}
+	if (current_project.lf_mf_design.enabled && lf_mf_band_box != nullptr) {
+		const int band_index = lf_mf_band_box->findText(current_project.lf_mf_design.band_name, Qt::MatchStartsWith);
+		const int design_type_index = lf_mf_design_type_box->findData(calculators::lf_mf_design_type_key(current_project.lf_mf_design.design_type));
+		if (band_index >= 0) {
+			const QSignalBlocker blocker(lf_mf_band_box);
+			lf_mf_band_box->setCurrentIndex(band_index);
+		}
+		if (design_type_index >= 0) {
+			const QSignalBlocker blocker(lf_mf_design_type_box);
+			lf_mf_design_type_box->setCurrentIndex(design_type_index);
+		}
+		{
+			const QSignalBlocker blocker(lf_mf_frequency_box);
+			lf_mf_frequency_box->setValue(current_project.lf_mf_design.frequency_mhz);
+		}
+		{
+			const QSignalBlocker blocker(lf_mf_vertical_box);
+			lf_mf_vertical_box->setValue(calculators::metres_to_length_unit(current_project.lf_mf_design.vertical_height_metres, current_project.preferred_length_unit));
+		}
+		{
+			const QSignalBlocker blocker(lf_mf_horizontal_box);
+			lf_mf_horizontal_box->setValue(calculators::metres_to_length_unit(current_project.lf_mf_design.horizontal_or_top_length_metres, current_project.preferred_length_unit));
+		}
+		{
+			const QSignalBlocker blocker(lf_mf_capacitance_box);
+			lf_mf_capacitance_box->setValue(current_project.lf_mf_design.has_estimated_capacitance ? current_project.lf_mf_design.estimated_capacitance_pf : 0.0);
+		}
+	}
 	if (current_project.propagation_settings.enabled && propagation_mode_box != nullptr) {
 		const int mode_index = propagation_mode_box->findData(reference::mode_type_key(current_project.propagation_settings.mode));
 		const int environment_index = propagation_environment_box->findData(reference::environment_profile_key(current_project.propagation_settings.environment));
@@ -862,6 +977,7 @@ MainWindow::apply_project_to_ui()
 	update_reference_panel();
 	update_project_title();
 	calculate();
+	calculate_lf_mf(false);
 }
 
 void
@@ -920,6 +1036,13 @@ void
 MainWindow::mark_project_dirty_and_recalculate()
 {
 	calculate();
+	mark_project_dirty();
+}
+
+void
+MainWindow::mark_project_dirty_and_recalculate_lf_mf()
+{
+	calculate_lf_mf();
 	mark_project_dirty();
 }
 
@@ -1083,6 +1206,86 @@ MainWindow::export_pdf()
 	}
 
 	statusBar()->showMessage(QStringLiteral("Export failed: could not write PDF"));
+}
+
+void
+MainWindow::calculate_lf_mf()
+{
+	calculate_lf_mf(true);
+}
+
+void
+MainWindow::calculate_lf_mf(bool update_project)
+{
+	if (lf_mf_result_text == nullptr)
+		return;
+
+	reference::BandReference band;
+	const QString band_name = lf_mf_band_box->itemData(lf_mf_band_box->currentIndex(), Qt::UserRole + 1).toString();
+	const bool has_band = reference::band_reference_by_name(band_name, band);
+	calculators::LfMfAntennaInput input;
+
+	input.design_type = calculators::lf_mf_design_type_from_key(lf_mf_design_type_box->currentData().toString());
+	input.frequency_mhz = lf_mf_frequency_box->value();
+	input.vertical_height_metres = calculators::length_unit_to_metres(lf_mf_vertical_box->value(), current_length_unit);
+	input.horizontal_or_top_length_metres = calculators::length_unit_to_metres(lf_mf_horizontal_box->value(), current_length_unit);
+	input.has_estimated_capacitance = lf_mf_capacitance_box->value() > 0.0;
+	input.estimated_capacitance_pf = lf_mf_capacitance_box->value();
+	input.preferred_length_unit = current_length_unit;
+
+	const calculators::LfMfAntennaResult result = calculators::calculate_lf_mf_antenna(input);
+	QString text;
+
+	if (!result.ok) {
+		lf_mf_result_text->setPlainText(QStringLiteral("Input error: %1").arg(result.error_message));
+		return;
+	}
+
+	text += QStringLiteral("Band: %1\n").arg(has_band ? band.name : QStringLiteral("Custom LF/MF"));
+	text += QStringLiteral("Service: %1\n").arg(has_band ? reference::band_service_label(band.service) : QStringLiteral("Unknown"));
+	text += QStringLiteral("Frequency: %1 kHz (%2 MHz)\n")
+		.arg(result.frequency_khz, 0, 'f', 3)
+		.arg(result.frequency_mhz, 0, 'f', 6);
+	text += QStringLiteral("Design type: %1\n\n")
+		.arg(calculators::lf_mf_design_type_label(input.design_type));
+	text += result.dimensions.join(QStringLiteral("\n"));
+	text += QStringLiteral("\n\nNotes:\n%1\n").arg(result.notes.join(QStringLiteral("\n")));
+	if (result.loading_likely_required)
+		text += QStringLiteral("\nLoading: loading coil or matching/tuning network likely required.\n");
+	if (result.loading_coil.has_inductance) {
+		text += QStringLiteral("Approximate inductance for supplied capacitance: %1 uH (%2 mH)\n")
+			.arg(result.loading_coil.inductance_uh, 0, 'f', 2)
+			.arg(result.loading_coil.inductance_mh, 0, 'f', 4);
+	}
+	text += QStringLiteral("\nWarnings:\n%1\n%2")
+		.arg(result.warnings.join(QStringLiteral("\n")))
+		.arg(result.loading_coil.warnings.join(QStringLiteral("\n")));
+	if (has_band) {
+		text += QStringLiteral("\n\nBand warning: %1\nPropagation notes: %2")
+			.arg(band.warning)
+			.arg(band.propagation_notes);
+	}
+
+	lf_mf_result_text->setPlainText(text);
+	if (design_scene != nullptr && (update_project || current_project.lf_mf_design.enabled))
+		design_scene->show_lf_mf_diagram(result, input.design_type, current_length_unit);
+
+	if (!update_project)
+		return;
+
+	current_project.lf_mf_design.enabled = true;
+	current_project.lf_mf_design.band_name = has_band ? band.name : QStringLiteral("Custom LF/MF");
+	current_project.lf_mf_design.band_service = has_band ? band.service : reference::BandService::Unknown;
+	current_project.lf_mf_design.category = has_band ? band.category : QStringLiteral("LF/MF");
+	current_project.lf_mf_design.design_type = input.design_type;
+	current_project.lf_mf_design.frequency_mhz = input.frequency_mhz;
+	current_project.lf_mf_design.vertical_height_metres = input.vertical_height_metres;
+	current_project.lf_mf_design.horizontal_or_top_length_metres = input.horizontal_or_top_length_metres;
+	current_project.lf_mf_design.estimated_capacitance_pf = input.estimated_capacitance_pf;
+	current_project.lf_mf_design.has_estimated_capacitance = input.has_estimated_capacitance;
+	current_project.lf_mf_design.receive_only = result.receive_only;
+	current_project.lf_mf_design.has_calculated_loading_inductance = result.loading_coil.has_inductance;
+	current_project.lf_mf_design.calculated_loading_inductance_uh = result.loading_coil.inductance_uh;
 }
 
 void
@@ -1557,6 +1760,20 @@ MainWindow::update_reference_panel()
 	}
 	reach_output += QStringLiteral("\nWarnings:\n%1").arg(result.warnings.join(QStringLiteral("\n")));
 	reach_text->setPlainText(reach_output);
+}
+
+void
+MainWindow::update_lf_mf_length_inputs()
+{
+	if (lf_mf_vertical_box == nullptr || lf_mf_horizontal_box == nullptr || length_box == nullptr)
+		return;
+
+	lf_mf_vertical_box->setSuffix(length_box->suffix());
+	lf_mf_horizontal_box->setSuffix(length_box->suffix());
+	lf_mf_vertical_box->setDecimals(length_box->decimals());
+	lf_mf_horizontal_box->setDecimals(length_box->decimals());
+	lf_mf_vertical_box->setSingleStep(length_box->singleStep());
+	lf_mf_horizontal_box->setSingleStep(length_box->singleStep());
 }
 
 void

@@ -4,6 +4,7 @@
 #include "band_reference.h"
 
 #include "broadcast_band_reference.h"
+#include "lf_mf_reference.h"
 
 namespace qantcal::reference {
 
@@ -64,6 +65,7 @@ band_references()
 			make_band(QStringLiteral("2m"), 144.000, 148.000, 144.300, QStringLiteral("2 metres"), QStringLiteral("VHF"), QStringLiteral("Verticals, small Yagis, and portable antennas are practical."), QStringLiteral("Mostly line-of-sight, with tropospheric, satellite, and occasional enhanced paths."), QStringLiteral("Height, terrain, antenna gain, and local noise dominate practical range.")),
 			make_band(QStringLiteral("70cm"), 430.000, 440.000, 433.500, QStringLiteral("70 centimetres"), QStringLiteral("UHF"), QStringLiteral("Compact verticals, handheld antennas, and small Yagis are practical."), QStringLiteral("Mostly line-of-sight with strong terrain, building, and foliage effects."), QStringLiteral("Useful for local, repeater, satellite, and short-range work where allocated."))
 		};
+		references.append(lf_mf_band_references());
 		references.append(broadcast_band_references());
 		return references;
 	}();
@@ -131,6 +133,8 @@ band_service_key(BandService service)
 		return QStringLiteral("broadcast");
 	case BandService::Informal:
 		return QStringLiteral("informal");
+	case BandService::Experimental:
+		return QStringLiteral("experimental");
 	case BandService::Utility:
 		return QStringLiteral("utility");
 	case BandService::Unknown:
@@ -150,6 +154,8 @@ band_service_label(BandService service)
 		return QStringLiteral("Broadcast");
 	case BandService::Informal:
 		return QStringLiteral("Informal");
+	case BandService::Experimental:
+		return QStringLiteral("Experimental");
 	case BandService::Utility:
 		return QStringLiteral("Utility");
 	case BandService::Unknown:
@@ -168,6 +174,8 @@ band_service_from_key(const QString &key)
 		return BandService::Broadcast;
 	if (key.compare(QStringLiteral("informal"), Qt::CaseInsensitive) == 0)
 		return BandService::Informal;
+	if (key.compare(QStringLiteral("experimental"), Qt::CaseInsensitive) == 0)
+		return BandService::Experimental;
 	if (key.compare(QStringLiteral("utility"), Qt::CaseInsensitive) == 0)
 		return BandService::Utility;
 

@@ -34,6 +34,27 @@ sample_broadcast_project()
 }
 
 qantcal::project::AntennaProject
+sample_lf_mf_project()
+{
+	qantcal::project::AntennaProject project = qantcal::project::default_project();
+
+	project.title = QStringLiteral("630m loaded vertical");
+	project.lf_mf_design.enabled = true;
+	project.lf_mf_design.band_name = QStringLiteral("630m Amateur");
+	project.lf_mf_design.band_service = qantcal::reference::BandService::Amateur;
+	project.lf_mf_design.category = QStringLiteral("MF");
+	project.lf_mf_design.design_type = qantcal::calculators::LfMfDesignType::ShortLoadedVertical;
+	project.lf_mf_design.frequency_mhz = 0.475;
+	project.lf_mf_design.vertical_height_metres = 10.0;
+	project.lf_mf_design.has_estimated_capacitance = true;
+	project.lf_mf_design.estimated_capacitance_pf = 200.0;
+	project.lf_mf_design.has_calculated_loading_inductance = true;
+	project.lf_mf_design.calculated_loading_inductance_uh = 561.5;
+
+	return project;
+}
+
+qantcal::project::AntennaProject
 sample_project()
 {
 	qantcal::project::AntennaProject project = qantcal::project::default_project();
@@ -145,6 +166,22 @@ test_document_from_project()
 	assert(document.title == QStringLiteral("Portable doublet"));
 	assert(document.project_title == QStringLiteral("Portable doublet"));
 	assert(document.antenna_type == QStringLiteral("Half-wave dipole"));
+}
+
+void
+test_lf_mf_warning_included()
+{
+	const qantcal::guides::GuideDocument document =
+		qantcal::guides::create_project_guide_document(sample_lf_mf_project(), qantcal::calculators::LengthUnit::Metres);
+	bool found_warning = false;
+
+	for (const qantcal::guides::GuideSection &section : document.sections) {
+		found_warning = found_warning
+			|| section.body_text.contains(QStringLiteral("does not calculate efficiency"))
+			|| section.body_text.contains(QStringLiteral("qantcal does not grant authority to transmit"));
+	}
+
+	assert(found_warning);
 }
 
 void
@@ -267,6 +304,7 @@ main()
 	test_assumptions_and_safety_notes();
 	test_broadcast_warning_included();
 	test_document_from_project();
+	test_lf_mf_warning_included();
 	test_multi_band_rows();
 	test_propagation_warning_included();
 	test_target_band_frequency_data();

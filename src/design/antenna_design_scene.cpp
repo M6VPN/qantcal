@@ -216,6 +216,69 @@ AntennaDesignScene::show_yagi_diagram(
 }
 
 void
+AntennaDesignScene::show_lf_mf_diagram(
+	const calculators::LfMfAntennaResult &result,
+	calculators::LfMfDesignType design_type,
+	calculators::LengthUnit length_unit
+)
+{
+	clear();
+	setSceneRect(-280.0, -180.0, 560.0, 360.0);
+
+	const QPen wire_pen(QColor(30, 90, 150), 4.0);
+	const QPen feed_pen(QColor(170, 60, 40), 3.0);
+	const QPen guide_pen(QColor(120, 120, 120), 1.0, Qt::DashLine);
+	const QBrush coil_brush(QColor(230, 190, 80));
+	const QBrush feed_brush(QColor(210, 80, 50));
+	const QFont label_font(QStringLiteral("Sans Serif"), 9);
+
+	addText(QStringLiteral("LF/MF antenna guide"), label_font)->setPos(-250.0, -155.0);
+	if (!result.ok) {
+		QGraphicsTextItem *error = addText(result.error_message, label_font);
+		error->setDefaultTextColor(QColor(150, 40, 35));
+		error->setPos(-230.0, -20.0);
+		return;
+	}
+
+	switch (design_type) {
+	case calculators::LfMfDesignType::FullSizeReference:
+		addLine(-230.0, 0.0, 230.0, 0.0, wire_pen);
+		addText(QStringLiteral("full-size reference, not to scale"), label_font)->setPos(-95.0, -45.0);
+		addText(length_label(QStringLiteral("quarter wave"), result.quarter_wave_metres, length_unit), label_font)->setPos(-230.0, 40.0);
+		break;
+	case calculators::LfMfDesignType::ShortLoadedVertical:
+		addLine(0.0, 80.0, 0.0, -115.0, wire_pen);
+		addEllipse(-18.0, 42.0, 36.0, 28.0, feed_pen, coil_brush);
+		addLine(-210.0, 95.0, 210.0, 95.0, guide_pen);
+		addLine(0.0, 85.0, -150.0, 125.0, wire_pen);
+		addLine(0.0, 85.0, 150.0, 125.0, wire_pen);
+		addText(QStringLiteral("base loading coil"), label_font)->setPos(25.0, 38.0);
+		addText(length_label(QStringLiteral("vertical"), result.total_wire_length_metres, length_unit), label_font)->setPos(25.0, -70.0);
+		break;
+	case calculators::LfMfDesignType::InvertedL:
+		addLine(-120.0, 90.0, -120.0, -95.0, wire_pen);
+		addLine(-120.0, -95.0, 210.0, -95.0, wire_pen);
+		addRect(-145.0, 55.0, 50.0, 35.0, feed_pen, feed_brush);
+		addText(QStringLiteral("loading / matcher"), label_font)->setPos(-90.0, 54.0);
+		addText(length_label(QStringLiteral("wire"), result.total_wire_length_metres, length_unit), label_font)->setPos(-30.0, -130.0);
+		break;
+	case calculators::LfMfDesignType::TopLoadedT:
+		addLine(0.0, 90.0, 0.0, -95.0, wire_pen);
+		addLine(-180.0, -95.0, 180.0, -95.0, wire_pen);
+		addEllipse(-18.0, 42.0, 36.0, 28.0, feed_pen, coil_brush);
+		addText(QStringLiteral("top loading"), label_font)->setPos(45.0, -125.0);
+		addText(QStringLiteral("base loading / tuning"), label_font)->setPos(25.0, 45.0);
+		break;
+	case calculators::LfMfDesignType::ReceiveOnlyCompact:
+		addEllipse(-90.0, -80.0, 180.0, 160.0, wire_pen);
+		addRect(120.0, -25.0, 45.0, 50.0, feed_pen, feed_brush);
+		addLine(0.0, 0.0, 120.0, 0.0, feed_pen);
+		addText(QStringLiteral("receive-only loop / active probe placeholder"), label_font)->setPos(-170.0, 95.0);
+		break;
+	}
+}
+
+void
 AntennaDesignScene::show_project_diagram(
 	const project::AntennaProject &project,
 	calculators::LengthUnit length_unit

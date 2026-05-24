@@ -8,8 +8,12 @@ add_library(qantcal_core
 	calculators/coil_calculator.h
 	calculators/ham_band.cpp
 	calculators/ham_band.h
+	calculators/lf_mf_antenna_calculator.cpp
+	calculators/lf_mf_antenna_calculator.h
 	calculators/lc_resonance_calculator.cpp
 	calculators/lc_resonance_calculator.h
+	calculators/loading_coil_calculator.cpp
+	calculators/loading_coil_calculator.h
 	calculators/radio_horizon_calculator.cpp
 	calculators/radio_horizon_calculator.h
 	calculators/rf_units.cpp
@@ -36,6 +40,8 @@ add_library(qantcal_core
 	reference/band_reference.h
 	reference/broadcast_band_reference.cpp
 	reference/broadcast_band_reference.h
+	reference/lf_mf_reference.cpp
+	reference/lf_mf_reference.h
 	reference/mode_reference.cpp
 	reference/mode_reference.h
 	reference/propagation_notes.cpp

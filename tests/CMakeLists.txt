@@ -37,6 +37,18 @@ add_executable(test_lc_resonance_calculator
 	test_lc_resonance_calculator.cpp
 )
 
+add_executable(test_lf_mf_antenna_calculator
+	test_lf_mf_antenna_calculator.cpp
+)
+
+add_executable(test_lf_mf_reference
+	test_lf_mf_reference.cpp
+)
+
+add_executable(test_loading_coil_calculator
+	test_loading_coil_calculator.cpp
+)
+
 add_executable(test_mode_reference
 	test_mode_reference.cpp
 )
@@ -114,6 +126,21 @@ target_link_libraries(test_guide_renderer
 )
 
 target_link_libraries(test_lc_resonance_calculator
+	PRIVATE
+		qantcal_core
+)
+
+target_link_libraries(test_lf_mf_antenna_calculator
+	PRIVATE
+		qantcal_core
+)
+
+target_link_libraries(test_lf_mf_reference
+	PRIVATE
+		qantcal_core
+)
+
+target_link_libraries(test_loading_coil_calculator
 	PRIVATE
 		qantcal_core
 )
@@ -209,6 +236,21 @@ add_test(
 )
 
 add_test(
+	NAME test_lf_mf_antenna_calculator
+	COMMAND test_lf_mf_antenna_calculator
+)
+
+add_test(
+	NAME test_lf_mf_reference
+	COMMAND test_lf_mf_reference
+)
+
+add_test(
+	NAME test_loading_coil_calculator
+	COMMAND test_loading_coil_calculator
+)
+
+add_test(
 	NAME test_mode_reference
 	COMMAND test_mode_reference
 )
@@ -263,6 +305,9 @@ set_tests_properties(
 	test_guide_document
 	test_guide_renderer
 	test_lc_resonance_calculator
+	test_lf_mf_antenna_calculator
+	test_lf_mf_reference
+	test_loading_coil_calculator
 	test_mode_reference
 	test_propagation_notes
 	test_radio_horizon_calculator

@@ -13,6 +13,7 @@ enum class BandService {
 	Amateur,
 	Broadcast,
 	Informal,
+	Experimental,
 	Utility,
 	Unknown
 };

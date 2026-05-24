@@ -85,6 +85,27 @@ sample_yagi_project()
 }
 
 qantcal::project::AntennaProject
+sample_lf_mf_project()
+{
+	qantcal::project::AntennaProject project = sample_project(1);
+
+	project.lf_mf_design.enabled = true;
+	project.lf_mf_design.band_name = QStringLiteral("630m Amateur");
+	project.lf_mf_design.band_service = qantcal::reference::BandService::Amateur;
+	project.lf_mf_design.category = QStringLiteral("MF");
+	project.lf_mf_design.design_type = qantcal::calculators::LfMfDesignType::ShortLoadedVertical;
+	project.lf_mf_design.frequency_mhz = 0.475;
+	project.lf_mf_design.vertical_height_metres = 10.0;
+	project.lf_mf_design.horizontal_or_top_length_metres = 15.0;
+	project.lf_mf_design.has_estimated_capacitance = true;
+	project.lf_mf_design.estimated_capacitance_pf = 200.0;
+	project.lf_mf_design.has_calculated_loading_inductance = true;
+	project.lf_mf_design.calculated_loading_inductance_uh = 561.5;
+
+	return project;
+}
+
+qantcal::project::AntennaProject
 sample_propagation_project()
 {
 	qantcal::project::AntennaProject project = sample_project(1);
@@ -148,6 +169,52 @@ test_multiple_targets_round_trip()
 	assert(qantcal::project::from_json(qantcal::project::to_json(project), parsed, error));
 	assert(parsed.targets.size() == 3);
 	assert(parsed.elements.size() == 1);
+}
+
+
+void
+test_lf_mf_design_invalid_enabled_capacitance_rejected()
+{
+	QJsonObject object = qantcal::project::to_json(sample_lf_mf_project());
+	QJsonObject lf_mf = object.value(QStringLiteral("lfMfDesign")).toObject();
+	qantcal::project::AntennaProject parsed;
+	QString error;
+
+	lf_mf.insert(QStringLiteral("estimatedCapacitancePf"), 0.0);
+	object.insert(QStringLiteral("lfMfDesign"), lf_mf);
+
+	assert(!qantcal::project::from_json(object, parsed, error));
+	assert(!error.isEmpty());
+}
+
+
+void
+test_lf_mf_design_non_object_rejected()
+{
+	QJsonObject object = qantcal::project::to_json(sample_lf_mf_project());
+	qantcal::project::AntennaProject parsed;
+	QString error;
+
+	object.insert(QStringLiteral("lfMfDesign"), QStringLiteral("invalid"));
+
+	assert(!qantcal::project::from_json(object, parsed, error));
+	assert(!error.isEmpty());
+}
+
+void
+test_lf_mf_design_round_trip()
+{
+	const qantcal::project::AntennaProject project = sample_lf_mf_project();
+	qantcal::project::AntennaProject parsed;
+	QString error;
+
+	assert(qantcal::project::from_json(qantcal::project::to_json(project), parsed, error));
+	assert(parsed.lf_mf_design.enabled);
+	assert(parsed.lf_mf_design.design_type == qantcal::calculators::LfMfDesignType::ShortLoadedVertical);
+	assert(parsed.lf_mf_design.band_name == QStringLiteral("630m Amateur"));
+	assert(near(parsed.lf_mf_design.frequency_mhz, 0.475));
+	assert(near(parsed.lf_mf_design.vertical_height_metres, 10.0));
+	assert(near(parsed.lf_mf_design.calculated_loading_inductance_uh, 561.5));
 }
 
 void
@@ -351,6 +418,9 @@ main()
 	test_broadcast_service_round_trip();
 	test_default_round_trip();
 	test_length_unit_round_trip();
+	test_lf_mf_design_invalid_enabled_capacitance_rejected();
+	test_lf_mf_design_non_object_rejected();
+	test_lf_mf_design_round_trip();
 	test_missing_diagram_fields_defaults();
 	test_multiple_targets_round_trip();
 	test_negative_frequency_rejected();

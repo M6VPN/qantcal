@@ -5,6 +5,8 @@
 
 #include <QJsonArray>
 
+#include <cmath>
+
 namespace qantcal::project {
 
 namespace {
@@ -42,6 +44,27 @@ diagram_item_to_json(const DiagramItemDescriptor &item)
 	object.insert(QStringLiteral("points"), points);
 	object.insert(QStringLiteral("position_x"), item.position.x());
 	object.insert(QStringLiteral("position_y"), item.position.y());
+
+	return object;
+}
+
+QJsonObject
+lf_mf_design_to_json(const LfMfProjectDesign &design)
+{
+	QJsonObject object;
+
+	object.insert(QStringLiteral("bandName"), design.band_name);
+	object.insert(QStringLiteral("bandService"), reference::band_service_key(design.band_service));
+	object.insert(QStringLiteral("calculatedLoadingInductanceUh"), design.calculated_loading_inductance_uh);
+	object.insert(QStringLiteral("category"), design.category);
+	object.insert(QStringLiteral("designType"), calculators::lf_mf_design_type_key(design.design_type));
+	object.insert(QStringLiteral("frequencyMhz"), design.frequency_mhz);
+	object.insert(QStringLiteral("hasCalculatedLoadingInductance"), design.has_calculated_loading_inductance);
+	object.insert(QStringLiteral("hasEstimatedCapacitance"), design.has_estimated_capacitance);
+	object.insert(QStringLiteral("horizontalOrTopLengthMetres"), design.horizontal_or_top_length_metres);
+	object.insert(QStringLiteral("estimatedCapacitancePf"), design.estimated_capacitance_pf);
+	object.insert(QStringLiteral("receiveOnly"), design.receive_only);
+	object.insert(QStringLiteral("verticalHeightMetres"), design.vertical_height_metres);
 
 	return object;
 }
@@ -230,6 +253,68 @@ read_propagation_settings(const QJsonObject &object, PropagationProjectSettings 
 }
 
 bool
+read_lf_mf_design(const QJsonObject &object, LfMfProjectDesign &design, QString &error_message)
+{
+	if (!object.contains(QStringLiteral("lfMfDesign")))
+		return true;
+
+	if (!object.value(QStringLiteral("lfMfDesign")).isObject()) {
+		error_message = QStringLiteral("LF/MF design must be an object.");
+		return false;
+	}
+
+	const QJsonObject lf_mf_object = object.value(QStringLiteral("lfMfDesign")).toObject();
+	const double frequency_mhz = lf_mf_object.value(QStringLiteral("frequencyMhz")).toDouble(0.0);
+	const double vertical_height_metres = lf_mf_object.value(QStringLiteral("verticalHeightMetres")).toDouble(0.0);
+	const double horizontal_or_top_length_metres = lf_mf_object.value(QStringLiteral("horizontalOrTopLengthMetres")).toDouble(0.0);
+	const double estimated_capacitance_pf = lf_mf_object.value(QStringLiteral("estimatedCapacitancePf")).toDouble(0.0);
+	const double calculated_loading_inductance_uh = lf_mf_object.value(QStringLiteral("calculatedLoadingInductanceUh")).toDouble(0.0);
+	const bool has_estimated_capacitance = lf_mf_object.value(QStringLiteral("hasEstimatedCapacitance")).toBool(false);
+	const bool has_calculated_loading_inductance = lf_mf_object.value(QStringLiteral("hasCalculatedLoadingInductance")).toBool(false);
+
+	if (!std::isfinite(frequency_mhz) || frequency_mhz < 0.0) {
+		error_message = QStringLiteral("LF/MF frequency cannot be negative.");
+		return false;
+	}
+	if (!std::isfinite(vertical_height_metres) || !std::isfinite(horizontal_or_top_length_metres) || vertical_height_metres < 0.0 || horizontal_or_top_length_metres < 0.0) {
+		error_message = QStringLiteral("LF/MF physical lengths cannot be negative.");
+		return false;
+	}
+	if (!std::isfinite(estimated_capacitance_pf) || estimated_capacitance_pf < 0.0) {
+		error_message = QStringLiteral("LF/MF estimated capacitance cannot be negative.");
+		return false;
+	}
+	if (!std::isfinite(calculated_loading_inductance_uh) || calculated_loading_inductance_uh < 0.0) {
+		error_message = QStringLiteral("LF/MF loading inductance cannot be negative.");
+		return false;
+	}
+	if (has_estimated_capacitance && estimated_capacitance_pf <= 0.0) {
+		error_message = QStringLiteral("LF/MF estimated capacitance must be positive when enabled.");
+		return false;
+	}
+	if (has_calculated_loading_inductance && calculated_loading_inductance_uh <= 0.0) {
+		error_message = QStringLiteral("LF/MF loading inductance must be positive when enabled.");
+		return false;
+	}
+
+	design.enabled = true;
+	design.band_name = lf_mf_object.value(QStringLiteral("bandName")).toString();
+	design.band_service = reference::band_service_from_key(lf_mf_object.value(QStringLiteral("bandService")).toString());
+	design.calculated_loading_inductance_uh = calculated_loading_inductance_uh;
+	design.category = lf_mf_object.value(QStringLiteral("category")).toString();
+	design.design_type = calculators::lf_mf_design_type_from_key(lf_mf_object.value(QStringLiteral("designType")).toString());
+	design.frequency_mhz = frequency_mhz;
+	design.has_calculated_loading_inductance = has_calculated_loading_inductance;
+	design.has_estimated_capacitance = has_estimated_capacitance;
+	design.horizontal_or_top_length_metres = horizontal_or_top_length_metres;
+	design.estimated_capacitance_pf = estimated_capacitance_pf;
+	design.receive_only = lf_mf_object.value(QStringLiteral("receiveOnly")).toBool(false);
+	design.vertical_height_metres = vertical_height_metres;
+
+	return true;
+}
+
+bool
 read_yagi_design(const QJsonObject &object, YagiProjectDesign &design, QString &error_message)
 {
 	if (!object.contains(QStringLiteral("yagiDesign")))
@@ -309,6 +394,8 @@ from_json(const QJsonObject &object, AntennaProject &project, QString &error_mes
 		return false;
 	if (!read_propagation_settings(object, parsed.propagation_settings, error_message))
 		return false;
+	if (!read_lf_mf_design(object, parsed.lf_mf_design, error_message))
+		return false;
 	if (!read_yagi_design(object, parsed.yagi_design, error_message))
 		return false;
 
@@ -343,6 +430,8 @@ to_json(const AntennaProject &project)
 	object.insert(QStringLiteral("title"), project.title);
 	object.insert(QStringLiteral("updated_utc"), project.updated_utc);
 	object.insert(QStringLiteral("velocity_factor"), project.velocity_factor);
+	if (project.lf_mf_design.enabled)
+		object.insert(QStringLiteral("lfMfDesign"), lf_mf_design_to_json(project.lf_mf_design));
 	if (project.propagation_settings.enabled)
 		object.insert(QStringLiteral("propagationReference"), propagation_settings_to_json(project.propagation_settings));
 	if (project.yagi_design.enabled)
