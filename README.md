@@ -38,12 +38,9 @@ Progress:
 
 ## Screenshots
 
-![Dipole design](screens/qantcal-dipole.png)
+![Main screen](screens/alpha/1-2m.png)
 
-![Yagi design](screens/qantcal-yagi.png)
-
-![Calculators](screens/qantcal-calc.png)
-
+[MORE SCREENSHOTS!!!](screenshots.md)
 
 ## Planned Features
 
