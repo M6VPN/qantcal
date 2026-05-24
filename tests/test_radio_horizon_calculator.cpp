@@ -27,7 +27,8 @@ test_combined_horizon()
 		qantcal::calculators::calculate_radio_horizon(input);
 
 	assert(result.ok);
-	assert(near_value(result.combined_distance_km, 22.580, 0.010));
+	assert(near_value(result.combined_distance_km, 26.077, 0.010));
+	assert(result.model_label.find("4/3") != std::string::npos);
 }
 
 void
@@ -63,7 +64,24 @@ test_ten_metre_horizon()
 		qantcal::calculators::calculate_radio_horizon(input);
 
 	assert(result.ok);
+	assert(near_value(result.tx_horizon_km, std::sqrt(170.0), 0.001));
+}
+
+void
+test_geometric_horizon_model()
+{
+	qantcal::calculators::RadioHorizonInput input;
+
+	input.tx_height_m = 10.0;
+	input.rx_height_m = 0.0;
+	input.model = qantcal::calculators::RadioHorizonModel::Geometric;
+
+	const qantcal::calculators::RadioHorizonResult result =
+		qantcal::calculators::calculate_radio_horizon(input);
+
+	assert(result.ok);
 	assert(near_value(result.tx_horizon_km, std::sqrt(127.46), 0.001));
+	assert(result.model_label.find("Geometric") != std::string::npos);
 }
 
 }
@@ -72,6 +90,7 @@ int
 main()
 {
 	test_combined_horizon();
+	test_geometric_horizon_model();
 	test_height_unit_conversion();
 	test_ten_metre_horizon();
 

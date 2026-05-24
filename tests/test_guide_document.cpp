@@ -426,6 +426,23 @@ test_yagi_document_contains_yagi_sections()
 }
 
 void
+test_yagi_fallback_diagram_uses_yagi_elements()
+{
+	const qantcal::guides::GuideDocument document =
+		qantcal::guides::create_project_guide_document(sample_yagi_project(), qantcal::calculators::LengthUnit::Metres);
+	bool found_driven = false;
+
+	assert(document.diagram_items.size() == 3);
+	for (const qantcal::project::DiagramItemDescriptor &item : document.diagram_items) {
+		assert(item.kind == QStringLiteral("yagi_element") || item.kind == QStringLiteral("yagi_driven_element"));
+		found_driven = found_driven || item.kind == QStringLiteral("yagi_driven_element");
+	}
+
+	assert(found_driven);
+	assert(document.diagram_items[1].position.x() > document.diagram_items[0].position.x());
+}
+
+void
 test_yagi_material_list_contains_elements_and_boom()
 {
 	const qantcal::guides::GuideDocument document =
@@ -485,6 +502,7 @@ main()
 	test_unit_formatting();
 	test_yagi_document_contains_yagi_sections();
 	test_yagi_document_contains_starting_dimension_limits();
+	test_yagi_fallback_diagram_uses_yagi_elements();
 	test_yagi_material_list_contains_elements_and_boom();
 
 	return 0;

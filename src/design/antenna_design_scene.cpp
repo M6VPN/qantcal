@@ -344,9 +344,11 @@ AntennaDesignScene::show_project_diagram(
 			.arg(element.label)
 			.arg(QString::fromStdString(calculators::format_length(element.length_metres, length_unit)));
 		AntennaDesignItem *item = new AntennaDesignItem(descriptor);
+		const QPointF feed_position = descriptor.position;
 
 		addItem(item);
-		addEllipse(-8.0, y - 8.0, 16.0, 16.0, feed_pen, feed_brush)->setFlag(QGraphicsItem::ItemIsSelectable, true);
+		if (descriptor.kind != QStringLiteral("yagi_element"))
+			addEllipse(feed_position.x() - 8.0, feed_position.y() - 8.0, 16.0, 16.0, feed_pen, feed_brush)->setFlag(QGraphicsItem::ItemIsSelectable, true);
 		add_label_for_item(item, label, 10.0);
 		y += 58.0;
 

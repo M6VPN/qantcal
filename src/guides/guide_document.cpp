@@ -87,8 +87,9 @@ diagram_kind_for_antenna(calculators::AntennaType antenna_type)
 		return QStringLiteral("inverted_vee");
 	case calculators::AntennaType::RandomWire:
 		return QStringLiteral("random_wire");
-	case calculators::AntennaType::HalfWaveDipole:
 	case calculators::AntennaType::Yagi:
+		return QStringLiteral("yagi_element");
+	case calculators::AntennaType::HalfWaveDipole:
 		return QStringLiteral("dipole");
 	}
 
@@ -131,9 +132,13 @@ diagram_points_for_antenna(calculators::AntennaType antenna_type)
 			QPointF(0.0, 70.0),
 			QPointF(120.0, 105.0)
 		};
+	case calculators::AntennaType::Yagi:
+		return {
+			QPointF(0.0, -80.0),
+			QPointF(0.0, 80.0)
+		};
 	case calculators::AntennaType::EndFedHalfWave:
 	case calculators::AntennaType::HalfWaveDipole:
-	case calculators::AntennaType::Yagi:
 		return {
 			QPointF(-220.0, 0.0),
 			QPointF(220.0, 0.0)
@@ -176,6 +181,30 @@ diagram_item_for_antenna(
 }
 
 project::DiagramItemDescriptor
+diagram_item_for_project_element(
+	const project::AntennaProject &project,
+	const project::AntennaElement &element,
+	int element_index
+)
+{
+	const QPointF position = project.antenna_type == calculators::AntennaType::Yagi
+		? QPointF(-140.0 + element_index * 120.0, 0.0)
+		: QPointF(0.0, -130.0 + element_index * 58.0);
+	project::DiagramItemDescriptor item = diagram_item_for_antenna(
+		project.antenna_type,
+		QStringLiteral("element-%1").arg(element_index + 1),
+		element.label,
+		element.length_metres,
+		position
+	);
+
+	if (project.antenna_type == calculators::AntennaType::Yagi && element.role.contains(QStringLiteral("driven"), Qt::CaseInsensitive))
+		item.kind = QStringLiteral("yagi_driven_element");
+
+	return item;
+}
+
+project::DiagramItemDescriptor
 diagram_item_for_result(const calculators::AntennaCalculationResult &result)
 {
 	return diagram_item_for_antenna(
@@ -198,11 +227,24 @@ append_single_build_sheet_sections(
 	QStringList checklist;
 
 	materials.title = QStringLiteral("Material list");
-	append_material_row(materials, QStringLiteral("Antenna wire"), formatted_length(result.total_length_m, length_unit), QStringLiteral("Cut long where practical, then trim while measuring."));
+	if (result.conductor_length_m > 0.0) {
+		append_material_row(
+			materials,
+			result.antenna_type == calculators::AntennaType::FoldedDipole ? QStringLiteral("Antenna conductor") : QStringLiteral("Antenna wire"),
+			formatted_length(result.conductor_length_m, length_unit),
+			QStringLiteral("Cut long where practical, then trim while measuring.")
+		);
+	} else if (result.total_length_m > 0.0) {
+		append_material_row(materials, QStringLiteral("Antenna wire"), formatted_length(result.total_length_m, length_unit), QStringLiteral("Cut long where practical, then trim while measuring."));
+	}
 	if (result.antenna_type == calculators::AntennaType::FoldedDipole)
-		append_material_row(materials, QStringLiteral("Folded return conductor"), formatted_length(result.total_length_m, length_unit), QStringLiteral("Keep spacing and feed arrangement consistent through both sides."));
-	append_material_row(materials, QStringLiteral("Dipole legs"), formatted_length(result.leg_length_m, length_unit), QStringLiteral("Two equal legs from the calculated total length."));
-	append_material_row(materials, QStringLiteral("Vertical radiator"), formatted_length(result.radiator_length_m, length_unit), QStringLiteral("Use with a radial or counterpoise system."));
+		append_material_row(materials, QStringLiteral("Folded dipole span"), formatted_length(result.total_length_m, length_unit), QStringLiteral("Overall span; total conductor is roughly twice this value."));
+	if (result.loop_side_length_m > 0.0)
+		append_material_row(materials, QStringLiteral("Square/diamond loop side"), formatted_length(result.loop_side_length_m, length_unit), QStringLiteral("One side of a four-sided loop using the calculated circumference."));
+	if (result.leg_length_m > 0.0)
+		append_material_row(materials, QStringLiteral("Dipole legs"), formatted_length(result.leg_length_m, length_unit), QStringLiteral("Two equal legs from the calculated span."));
+	if (result.radiator_length_m > 0.0)
+		append_material_row(materials, QStringLiteral("Vertical radiator"), formatted_length(result.radiator_length_m, length_unit), QStringLiteral("Use with a radial or counterpoise system."));
 	append_material_row(materials, QStringLiteral("Feed or matching hardware"), QStringLiteral("as required"), QString::fromStdString(result.matching_note));
 	append_material_row(materials, QStringLiteral("Counterpoise or radials"), QStringLiteral("as required"), QString::fromStdString(result.counterpoise_note));
 	append_material_row(materials, QStringLiteral("Supports and insulators"), QStringLiteral("site dependent"), QStringLiteral("Use safe supports, end insulators, strain relief, and weatherproofing."));
@@ -453,8 +495,15 @@ create_guide_document(
 		document.diagram_items.append(diagram_item_for_result(result));
 
 	append_dimension(dimensions, QStringLiteral("Wavelength"), result.wavelength_m, length_unit);
-	append_dimension(dimensions, QStringLiteral("Total length"), result.total_length_m, length_unit);
+	if (result.antenna_type == calculators::AntennaType::FullWaveLoop) {
+		append_dimension(dimensions, QStringLiteral("Loop circumference"), result.total_length_m, length_unit);
+	} else {
+		append_dimension(dimensions, QStringLiteral("Electrical span / cut length"), result.total_length_m, length_unit);
+	}
 	append_dimension(dimensions, QStringLiteral("Per-leg length"), result.leg_length_m, length_unit);
+	append_dimension(dimensions, QStringLiteral("Square/diamond loop side"), result.loop_side_length_m, length_unit);
+	if (result.conductor_length_m > 0.0 && result.conductor_length_m != result.total_length_m)
+		append_dimension(dimensions, QStringLiteral("Estimated total conductor"), result.conductor_length_m, length_unit);
 	append_dimension(dimensions, QStringLiteral("Radiator length"), result.radiator_length_m, length_unit);
 
 	notes << QString::fromStdString(result.counterpoise_note);
@@ -515,13 +564,7 @@ create_project_guide_document(
 	if (document.diagram_items.isEmpty()) {
 		int element_index = 0;
 		for (const project::AntennaElement &element : project.elements) {
-			document.diagram_items.append(diagram_item_for_antenna(
-				project.antenna_type,
-				QStringLiteral("element-%1").arg(element_index + 1),
-				element.label,
-				element.length_metres,
-				QPointF(0.0, -130.0 + element_index * 58.0)
-			));
+			document.diagram_items.append(diagram_item_for_project_element(project, element, element_index));
 			++element_index;
 		}
 	}

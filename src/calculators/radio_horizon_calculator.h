@@ -8,9 +8,15 @@
 
 namespace qantcal::calculators {
 
+enum class RadioHorizonModel {
+	Geometric,
+	EffectiveEarthFourThirds
+};
+
 struct RadioHorizonInput {
 	double rx_height_m = 0.0;
 	double tx_height_m = 0.0;
+	RadioHorizonModel model = RadioHorizonModel::EffectiveEarthFourThirds;
 };
 
 struct RadioHorizonResult {
@@ -19,10 +25,12 @@ struct RadioHorizonResult {
 	double rx_horizon_km = 0.0;
 	double tx_horizon_km = 0.0;
 	std::string error;
+	std::string model_label;
 	std::string note;
 };
 
 RadioHorizonResult calculate_radio_horizon(const RadioHorizonInput &input);
+const char *radio_horizon_model_label(RadioHorizonModel model);
 
 }
 

@@ -5,10 +5,12 @@
 
 #include "calculators/antenna_calculator.h"
 #include "design/antenna_design_scene.h"
+#include "project/antenna_project.h"
 #include "settings/translation_manager.h"
 
 #include <QApplication>
 #include <QComboBox>
+#include <QGraphicsEllipseItem>
 #include <QGraphicsPathItem>
 #include <QMenu>
 #include <QMenuBar>
@@ -74,6 +76,39 @@ test_help_menu_is_final(const qantcal::MainWindow &window)
 }
 
 void
+test_project_feedpoint_uses_descriptor_position()
+{
+	qantcal::design::AntennaDesignScene scene;
+	qantcal::project::AntennaProject project;
+	qantcal::project::AntennaElement element;
+	qantcal::project::DiagramItemDescriptor descriptor;
+
+	element.frequency_mhz = 7.1;
+	element.label = QStringLiteral("40m");
+	element.length_metres = 20.0;
+	project.elements.append(element);
+	descriptor.id = QStringLiteral("wire");
+	descriptor.kind = QStringLiteral("dipole");
+	descriptor.label = QStringLiteral("40m");
+	descriptor.length_metres = 20.0;
+	descriptor.points = { QPointF(-100.0, 0.0), QPointF(100.0, 0.0) };
+	descriptor.position = QPointF(42.0, 33.0);
+	project.diagram_items.append(descriptor);
+
+	scene.show_project_diagram(project, qantcal::calculators::LengthUnit::Metres);
+
+	bool found_feedpoint = false;
+	for (QGraphicsItem *item : scene.items()) {
+		QGraphicsEllipseItem *ellipse = dynamic_cast<QGraphicsEllipseItem *>(item);
+		if (ellipse == nullptr)
+			continue;
+		found_feedpoint = found_feedpoint || ellipse->rect().center() == descriptor.position;
+	}
+
+	assert(found_feedpoint);
+}
+
+void
 test_read_only_outputs_have_accessible_names(const qantcal::MainWindow &window)
 {
 	const QList<QTextEdit *> text_edits = window.findChildren<QTextEdit *>();
@@ -134,6 +169,7 @@ main(int argc, char *argv[])
 	qantcal::MainWindow window;
 
 	test_folded_dipole_scene_uses_folded_path();
+	test_project_feedpoint_uses_descriptor_position();
 	test_russian_menu_translation_loads();
 	process_resize(window, 800, 600);
 	test_antenna_selector_contains_folded_dipole(window);

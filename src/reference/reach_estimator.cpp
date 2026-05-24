@@ -91,7 +91,7 @@ estimate_reach(const ReachEstimateInput &input)
 		result.rx_horizon_km = horizon.rx_horizon_km;
 		result.combined_horizon_km = horizon.combined_distance_km;
 		result.categories << QStringLiteral("very local") << QStringLiteral("local") << QStringLiteral("line-of-sight") << QStringLiteral("highly condition-dependent");
-		result.summary = QStringLiteral("%1 VHF/UHF guidance: radio-horizon line-of-sight estimate is %2 km combined. Longer paths may occur through tropospheric, sporadic-E, satellite, or other condition-dependent modes where relevant.")
+		result.summary = QStringLiteral("%1 VHF/UHF guidance: 4/3 effective Earth radio-horizon estimate is %2 km combined. Longer paths may occur through tropospheric, sporadic-E, satellite, or other condition-dependent modes where relevant.")
 			.arg(band_name.isEmpty() ? QStringLiteral("Selected") : band_name)
 			.arg(result.combined_horizon_km, 0, 'f', 1);
 		return result;

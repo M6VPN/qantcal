@@ -99,7 +99,7 @@ calculate_lf_mf_antenna(const LfMfAntennaInput &input)
 		result.dimensions << QStringLiteral("Horizontal/top wire: %1").arg(QString::fromStdString(format_length(input.horizontal_or_top_length_metres, input.preferred_length_unit)));
 		result.dimensions << QStringLiteral("Total wire length: %1").arg(QString::fromStdString(format_length(result.total_wire_length_metres, input.preferred_length_unit)));
 		result.dimensions << QStringLiteral("Total wire ratio: %1").arg(format_ratio(result.total_wire_ratio));
-		result.notes << QStringLiteral("Top loading can reduce required loading inductance, but base loading or a matching network is still likely.");
+		result.notes << QStringLiteral("Top loading can change antenna capacitance, but this helper uses only the supplied capacitance when calculating loading inductance.");
 		if (input.vertical_height_metres <= 0.0)
 			result.warnings << QStringLiteral("Vertical section is zero, so this is not a buildable inverted-L antenna.");
 		if (result.total_wire_ratio < VERY_SHORT_ELECTRICAL_RATIO)
@@ -109,7 +109,7 @@ calculate_lf_mf_antenna(const LfMfAntennaInput &input)
 		result.loading_likely_required = true;
 		result.dimensions << QStringLiteral("Vertical section: %1").arg(QString::fromStdString(format_length(input.vertical_height_metres, input.preferred_length_unit)));
 		result.dimensions << QStringLiteral("Total top-hat length: %1").arg(QString::fromStdString(format_length(input.horizontal_or_top_length_metres, input.preferred_length_unit)));
-		result.notes << QStringLiteral("Top loading reduces required loading inductance but does not remove the need for tuning.");
+		result.notes << QStringLiteral("Top loading can change antenna capacitance, but this helper uses only the supplied capacitance when calculating loading inductance.");
 		if (input.vertical_height_metres <= 0.0)
 			result.warnings << QStringLiteral("Vertical section is zero, so this is not a buildable top-loaded vertical antenna.");
 		if (input.horizontal_or_top_length_metres <= 0.0)

@@ -105,6 +105,7 @@ private:
 	QComboBox *band_filter_box = nullptr;
 	QComboBox *choke_mix_box = nullptr;
 	QComboBox *design_mode_box = nullptr;
+	QComboBox *horizon_model_box = nullptr;
 	QComboBox *length_unit_box = nullptr;
 	QComboBox *lf_mf_band_box = nullptr;
 	QComboBox *lf_mf_design_type_box = nullptr;

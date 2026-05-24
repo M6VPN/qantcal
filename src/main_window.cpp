@@ -168,8 +168,9 @@ diagram_kind_for_antenna(calculators::AntennaType antenna_type)
 		return QStringLiteral("inverted_vee");
 	case calculators::AntennaType::RandomWire:
 		return QStringLiteral("random_wire");
-	case calculators::AntennaType::HalfWaveDipole:
 	case calculators::AntennaType::Yagi:
+		return QStringLiteral("yagi_element");
+	case calculators::AntennaType::HalfWaveDipole:
 		return QStringLiteral("dipole");
 	}
 
@@ -225,8 +226,12 @@ diagram_points_for_antenna(calculators::AntennaType antenna_type)
 			QPointF(130.0, -45.0),
 			QPointF(220.0, -20.0)
 		};
-	case calculators::AntennaType::HalfWaveDipole:
 	case calculators::AntennaType::Yagi:
+		return {
+			QPointF(0.0, -80.0),
+			QPointF(0.0, 80.0)
+		};
+	case calculators::AntennaType::HalfWaveDipole:
 		return {
 			QPointF(-220.0, 0.0),
 			QPointF(220.0, 0.0)
@@ -277,13 +282,28 @@ result_to_text(const calculators::AntennaCalculationResult &result, calculators:
 		.arg(result.shortening_factor, 0, 'f', 3);
 
 	if (result.total_length_m > 0.0) {
-		text += QStringLiteral("Total length: %1\n")
-			.arg(QString::fromStdString(calculators::format_length(result.total_length_m, length_unit)));
+		if (result.antenna_type == calculators::AntennaType::FullWaveLoop) {
+			text += QStringLiteral("Loop circumference: %1\n")
+				.arg(QString::fromStdString(calculators::format_length(result.total_length_m, length_unit)));
+		} else {
+			text += QStringLiteral("Electrical span / cut length: %1\n")
+				.arg(QString::fromStdString(calculators::format_length(result.total_length_m, length_unit)));
+		}
 	}
 
 	if (result.leg_length_m > 0.0) {
 		text += QStringLiteral("Per-leg length: %1\n")
 			.arg(QString::fromStdString(calculators::format_length(result.leg_length_m, length_unit)));
+	}
+
+	if (result.loop_side_length_m > 0.0) {
+		text += QStringLiteral("Square/diamond loop side: %1\n")
+			.arg(QString::fromStdString(calculators::format_length(result.loop_side_length_m, length_unit)));
+	}
+
+	if (result.conductor_length_m > 0.0 && result.conductor_length_m != result.total_length_m) {
+		text += QStringLiteral("Estimated total conductor: %1\n")
+			.arg(QString::fromStdString(calculators::format_length(result.conductor_length_m, length_unit)));
 	}
 
 	if (result.radiator_length_m > 0.0) {
@@ -1219,14 +1239,25 @@ MainWindow::create_rf_calculators_tab(QTabWidget *tabs)
 	QPushButton *horizon_button = new QPushButton(QStringLiteral("Calculate"), horizon_tab);
 	horizon_tx_height_box = create_positive_spin_box(horizon_tab, 10000000.0, 3, QStringLiteral(" selected unit"), 10.0);
 	horizon_rx_height_box = create_positive_spin_box(horizon_tab, 10000000.0, 3, QStringLiteral(" selected unit"), 10.0);
+	horizon_model_box = new QComboBox(horizon_tab);
+	horizon_model_box->addItem(
+		tr("Radio horizon (4/3 effective Earth)"),
+		static_cast<int>(calculators::RadioHorizonModel::EffectiveEarthFourThirds)
+	);
+	horizon_model_box->addItem(
+		tr("Geometric horizon"),
+		static_cast<int>(calculators::RadioHorizonModel::Geometric)
+	);
 	horizon_result_text = new QTextEdit(horizon_tab);
 	configure_form_layout(horizon_layout);
 	set_widget_hint(horizon_tx_height_box, QStringLiteral("Radio horizon TX height"), QStringLiteral("Transmit antenna height in the selected length unit."));
 	set_widget_hint(horizon_rx_height_box, QStringLiteral("Radio horizon RX height"), QStringLiteral("Receive antenna height in the selected length unit."));
+	set_widget_hint(horizon_model_box, tr("Radio horizon model"), tr("Chooses geometric horizon or 4/3 effective Earth radio horizon."));
 	set_widget_hint(horizon_button, QStringLiteral("Calculate radio horizon"), QStringLiteral("Updates radio line-of-sight horizon estimates."));
-	configure_result_text(horizon_result_text, QStringLiteral("Radio horizon results"), QStringLiteral("Shows TX, RX, and combined radio horizon distances."));
+	configure_result_text(horizon_result_text, QStringLiteral("Radio horizon results"), QStringLiteral("Shows TX, RX, combined distance, and selected horizon model."));
 	horizon_layout->addRow(QStringLiteral("TX antenna height"), horizon_tx_height_box);
 	horizon_layout->addRow(QStringLiteral("RX antenna height"), horizon_rx_height_box);
+	horizon_layout->addRow(tr("Model"), horizon_model_box);
 	horizon_layout->addRow(horizon_button);
 	horizon_layout->addRow(horizon_result_text);
 	rf_tabs->addTab(create_scroll_area(horizon_tab, rf_tabs, QStringLiteral("Radio horizon input area")), tr("Radio horizon"));
@@ -2090,10 +2121,11 @@ MainWindow::calculate_coax_loss()
 void
 MainWindow::calculate_horizon()
 {
-	const calculators::RadioHorizonInput input = {
-		calculators::length_unit_to_metres(horizon_rx_height_box->value(), current_length_unit),
-		calculators::length_unit_to_metres(horizon_tx_height_box->value(), current_length_unit)
-	};
+	calculators::RadioHorizonInput input;
+
+	input.rx_height_m = calculators::length_unit_to_metres(horizon_rx_height_box->value(), current_length_unit);
+	input.tx_height_m = calculators::length_unit_to_metres(horizon_tx_height_box->value(), current_length_unit);
+	input.model = static_cast<calculators::RadioHorizonModel>(horizon_model_box->currentData().toInt());
 	const calculators::RadioHorizonResult result = calculators::calculate_radio_horizon(input);
 
 	if (!result.ok) {
@@ -2102,7 +2134,8 @@ MainWindow::calculate_horizon()
 	}
 
 	horizon_result_text->setPlainText(
-		QStringLiteral("TX horizon: %1 km\nRX horizon: %2 km\nCombined line-of-sight estimate: %3 km\n\n%4")
+		QStringLiteral("Model: %1\nTX horizon: %2 km\nRX horizon: %3 km\nCombined line-of-sight estimate: %4 km\n\n%5")
+			.arg(QString::fromStdString(result.model_label))
 			.arg(result.tx_horizon_km, 0, 'f', 2)
 			.arg(result.rx_horizon_km, 0, 'f', 2)
 			.arg(result.combined_distance_km, 0, 'f', 2)
@@ -2141,7 +2174,9 @@ MainWindow::calculate_yagi()
 
 			project::DiagramItemDescriptor item;
 			item.id = QStringLiteral("yagi-%1").arg(yagi_element.label);
-			item.kind = QStringLiteral("yagi_element");
+			item.kind = yagi_element.role == calculators::YagiElementRole::Driven
+				? QStringLiteral("yagi_driven_element")
+				: QStringLiteral("yagi_element");
 			item.label = yagi_element.label;
 			item.length_metres = yagi_element.length_metres;
 			item.position = QPointF(yagi_element.position_from_reflector_metres * 120.0, 0.0);

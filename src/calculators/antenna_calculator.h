@@ -45,8 +45,12 @@ struct AntennaCalculationResult {
 	double wavelength_m = 0.0;
 	double total_length_m = 0.0;
 	double total_length_ft = 0.0;
+	double conductor_length_m = 0.0;
+	double conductor_length_ft = 0.0;
 	double leg_length_m = 0.0;
 	double leg_length_ft = 0.0;
+	double loop_side_length_m = 0.0;
+	double loop_side_length_ft = 0.0;
 	double radiator_length_m = 0.0;
 	double radiator_length_ft = 0.0;
 	double shortening_factor = DEFAULT_WIRE_FACTOR;

@@ -138,7 +138,7 @@ is_feedpoint_kind(const QString &kind)
 		|| kind == QStringLiteral("folded_dipole")
 		|| kind == QStringLiteral("end_fed")
 		|| kind == QStringLiteral("vertical")
-		|| kind == QStringLiteral("yagi_element");
+		|| kind == QStringLiteral("yagi_driven_element");
 }
 
 QRectF
@@ -237,7 +237,7 @@ draw_diagram(QPainter &painter, RenderState &state, const GuideDocument &documen
 		for (const QPointF &point : points)
 			mapped_points << map_diagram_point(point, bounds, diagram_rect);
 		if (mapped_points.size() >= 2) {
-			painter.setPen(item.kind == QStringLiteral("yagi_element") ? yagi_pen : wire_pen);
+			painter.setPen(item.kind == QStringLiteral("yagi_element") || item.kind == QStringLiteral("yagi_driven_element") ? yagi_pen : wire_pen);
 			if (item.kind == QStringLiteral("loop")) {
 				painter.drawPolygon(mapped_points);
 			} else if (item.kind == QStringLiteral("folded_dipole") && mapped_points.size() >= 7) {

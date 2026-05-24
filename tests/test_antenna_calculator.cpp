@@ -124,6 +124,7 @@ test_folded_dipole_equals_half_wave_starting_length()
 	assert(folded.ok);
 	assert(near_value(folded.total_length_m, dipole.total_length_m, 0.001));
 	assert(near_value(folded.leg_length_m, dipole.leg_length_m, 0.001));
+	assert(near_value(folded.conductor_length_m, folded.total_length_m * 2.0, 0.001));
 	assert(contains_text(folded.matching_note, "4 times"));
 }
 
@@ -161,6 +162,8 @@ test_full_wave_loop()
 
 	assert(result.ok);
 	assert(near_value(result.total_length_m, 20.057, 0.010));
+	assert(near_value(result.loop_side_length_m, result.total_length_m / 4.0, 0.001));
+	assert(near_value(result.conductor_length_m, result.total_length_m, 0.001));
 }
 
 void

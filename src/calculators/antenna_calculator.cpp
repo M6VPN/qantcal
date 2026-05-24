@@ -77,6 +77,8 @@ invalid_result(const AntennaCalculationInput &input, const std::string &error)
 	result.frequency_mhz = input.frequency_mhz;
 	result.total_length_m = input.length_m;
 	result.total_length_ft = metres_to_feet(input.length_m);
+	result.conductor_length_m = input.length_m;
+	result.conductor_length_ft = metres_to_feet(input.length_m);
 	result.shortening_factor = input.shortening_factor;
 	result.error = error;
 
@@ -153,23 +155,43 @@ populate_type_lengths(AntennaCalculationResult &result, AntennaType antenna_type
 {
 	switch (antenna_type) {
 	case AntennaType::HalfWaveDipole:
-	case AntennaType::FoldedDipole:
 	case AntennaType::InvertedVee:
 		result.total_length_m = length_m;
 		result.total_length_ft = metres_to_feet(length_m);
+		result.conductor_length_m = length_m;
+		result.conductor_length_ft = metres_to_feet(length_m);
+		result.leg_length_m = length_m / 2.0;
+		result.leg_length_ft = metres_to_feet(result.leg_length_m);
+		break;
+	case AntennaType::FoldedDipole:
+		result.total_length_m = length_m;
+		result.total_length_ft = metres_to_feet(length_m);
+		result.conductor_length_m = length_m * 2.0;
+		result.conductor_length_ft = metres_to_feet(result.conductor_length_m);
 		result.leg_length_m = length_m / 2.0;
 		result.leg_length_ft = metres_to_feet(result.leg_length_m);
 		break;
 	case AntennaType::QuarterWaveVertical:
 		result.total_length_m = length_m;
 		result.total_length_ft = metres_to_feet(length_m);
+		result.conductor_length_m = length_m;
+		result.conductor_length_ft = metres_to_feet(length_m);
 		result.radiator_length_m = length_m;
 		result.radiator_length_ft = metres_to_feet(length_m);
 		break;
 	case AntennaType::EndFedHalfWave:
+		result.total_length_m = length_m;
+		result.total_length_ft = metres_to_feet(length_m);
+		result.conductor_length_m = length_m;
+		result.conductor_length_ft = metres_to_feet(length_m);
+		break;
 	case AntennaType::FullWaveLoop:
 		result.total_length_m = length_m;
 		result.total_length_ft = metres_to_feet(length_m);
+		result.conductor_length_m = length_m;
+		result.conductor_length_ft = metres_to_feet(length_m);
+		result.loop_side_length_m = length_m / 4.0;
+		result.loop_side_length_ft = metres_to_feet(result.loop_side_length_m);
 		break;
 	case AntennaType::RandomWire:
 	case AntennaType::Yagi:
@@ -256,6 +278,8 @@ calculate_random_wire(const AntennaCalculationInput &input)
 
 	result.total_length_m = input.length_m;
 	result.total_length_ft = metres_to_feet(input.length_m);
+	result.conductor_length_m = input.length_m;
+	result.conductor_length_ft = metres_to_feet(input.length_m);
 	result.frequency_mhz = has_reference_frequency
 		? input.frequency_mhz
 		: frequency_from_wavelength_mhz(reference_wavelength_m);
