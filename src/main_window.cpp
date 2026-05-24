@@ -622,28 +622,28 @@ MainWindow::closeEvent(QCloseEvent *event)
 void
 MainWindow::create_actions()
 {
-	QMenu *file_menu = menuBar()->addMenu(QStringLiteral("&File"));
-	QAction *new_action = file_menu->addAction(QStringLiteral("New Project"));
-	QAction *open_action = file_menu->addAction(QStringLiteral("Open Project"));
-	QAction *save_action = file_menu->addAction(QStringLiteral("Save Project"));
-	QAction *save_as_action = file_menu->addAction(QStringLiteral("Save Project As"));
+	QMenu *file_menu = menuBar()->addMenu(tr("&File"));
+	QAction *new_action = file_menu->addAction(tr("New Project"));
+	QAction *open_action = file_menu->addAction(tr("Open Project"));
+	QAction *save_action = file_menu->addAction(tr("Save Project"));
+	QAction *save_as_action = file_menu->addAction(tr("Save Project As"));
 	file_menu->addSeparator();
-	QAction *print_action = file_menu->addAction(QStringLiteral("Print Guide"));
-	QAction *export_pdf_action = file_menu->addAction(QStringLiteral("Export PDF"));
+	QAction *print_action = file_menu->addAction(tr("Print Guide"));
+	QAction *export_pdf_action = file_menu->addAction(tr("Export PDF"));
 	file_menu->addSeparator();
-	QAction *exit_action = file_menu->addAction(QStringLiteral("Exit"));
+	QAction *exit_action = file_menu->addAction(tr("Exit"));
 
-	QMenu *help_menu = menuBar()->addMenu(QStringLiteral("&Help"));
-	QAction *about_action = help_menu->addAction(QStringLiteral("About qantcal"));
-	QMenu *edit_menu = menuBar()->addMenu(QStringLiteral("&Edit"));
-	QAction *undo_action = undo_stack->createUndoAction(this, QStringLiteral("Undo"));
-	QAction *redo_action = undo_stack->createRedoAction(this, QStringLiteral("Redo"));
-	QMenu *view_menu = menuBar()->addMenu(QStringLiteral("&View"));
-	QAction *zoom_in_action = view_menu->addAction(QStringLiteral("Zoom In"));
-	QAction *zoom_out_action = view_menu->addAction(QStringLiteral("Zoom Out"));
-	QAction *reset_zoom_action = view_menu->addAction(QStringLiteral("Reset Zoom"));
-	QAction *fit_design_action = view_menu->addAction(QStringLiteral("Fit Design"));
-	QAction *pan_action = view_menu->addAction(QStringLiteral("Pan Mode"));
+	QMenu *help_menu = menuBar()->addMenu(tr("&Help"));
+	QAction *about_action = help_menu->addAction(tr("About qantcal"));
+	QMenu *edit_menu = menuBar()->addMenu(tr("&Edit"));
+	QAction *undo_action = undo_stack->createUndoAction(this, tr("Undo"));
+	QAction *redo_action = undo_stack->createRedoAction(this, tr("Redo"));
+	QMenu *view_menu = menuBar()->addMenu(tr("&View"));
+	QAction *zoom_in_action = view_menu->addAction(tr("Zoom In"));
+	QAction *zoom_out_action = view_menu->addAction(tr("Zoom Out"));
+	QAction *reset_zoom_action = view_menu->addAction(tr("Reset Zoom"));
+	QAction *fit_design_action = view_menu->addAction(tr("Fit Design"));
+	QAction *pan_action = view_menu->addAction(tr("Pan Mode"));
 	pan_action->setCheckable(true);
 
 	new_action->setShortcut(QKeySequence::New);
@@ -860,7 +860,7 @@ MainWindow::create_antenna_tab(QTabWidget *tabs)
 	splitter->setSizes({360, 740});
 
 	root_layout->addWidget(splitter);
-	tabs->addTab(central, QStringLiteral("Antenna Calculator"));
+	tabs->addTab(central, tr("Antenna Calculator"));
 
 	connect(calculate_button, &QPushButton::clicked, this, &MainWindow::calculate);
 	connect(add_target_button, &QPushButton::clicked, this, &MainWindow::add_current_target);
@@ -944,7 +944,7 @@ MainWindow::create_lf_mf_tab(QTabWidget *tabs)
 	input_layout->addRow(calculate_lf_mf_button);
 	root_layout->addWidget(create_scroll_area(input_group, tab, QStringLiteral("LF/MF antenna input area")), 0);
 	root_layout->addWidget(lf_mf_result_text, 1);
-	tabs->addTab(tab, QStringLiteral("LF/MF Antennas"));
+	tabs->addTab(tab, tr("LF/MF Antennas"));
 
 	connect(calculate_lf_mf_button, &QPushButton::clicked, this, &MainWindow::mark_project_dirty_and_recalculate_lf_mf);
 	connect(lf_mf_band_box, &QComboBox::currentIndexChanged, this, [this](int index) {
@@ -990,7 +990,7 @@ MainWindow::create_rf_calculators_tab(QTabWidget *tabs)
 	coil_layout->addRow(QStringLiteral("Turns"), coil_turns_box);
 	coil_layout->addRow(coil_button);
 	coil_layout->addRow(coil_result_text);
-	rf_tabs->addTab(create_scroll_area(coil_tab, rf_tabs, QStringLiteral("Air-core coil input area")), QStringLiteral("Air-core coil"));
+	rf_tabs->addTab(create_scroll_area(coil_tab, rf_tabs, QStringLiteral("Air-core coil input area")), tr("Air-core coil"));
 
 	QWidget *coax_tab = new QWidget(rf_tabs);
 	QFormLayout *coax_layout = new QFormLayout(coax_tab);
@@ -1017,7 +1017,7 @@ MainWindow::create_rf_calculators_tab(QTabWidget *tabs)
 	coax_layout->addRow(QStringLiteral("Load SWR"), coax_swr_box);
 	coax_layout->addRow(coax_button);
 	coax_layout->addRow(coax_result_text);
-	rf_tabs->addTab(create_scroll_area(coax_tab, rf_tabs, QStringLiteral("Coax loss input area")), QStringLiteral("Coax loss"));
+	rf_tabs->addTab(create_scroll_area(coax_tab, rf_tabs, QStringLiteral("Coax loss input area")), tr("Coax loss"));
 
 	QWidget *choke_tab = new QWidget(rf_tabs);
 	QFormLayout *choke_layout = new QFormLayout(choke_tab);
@@ -1048,7 +1048,7 @@ MainWindow::create_rf_calculators_tab(QTabWidget *tabs)
 	choke_layout->addRow(QStringLiteral("Target impedance"), choke_target_impedance_box);
 	choke_layout->addRow(choke_button);
 	choke_layout->addRow(choke_result_text);
-	rf_tabs->addTab(create_scroll_area(choke_tab, rf_tabs, QStringLiteral("RF choke input area")), QStringLiteral("RF choke"));
+	rf_tabs->addTab(create_scroll_area(choke_tab, rf_tabs, QStringLiteral("RF choke input area")), tr("RF choke"));
 
 	QWidget *matching_tab = new QWidget(rf_tabs);
 	QFormLayout *matching_layout = new QFormLayout(matching_tab);
@@ -1068,7 +1068,7 @@ MainWindow::create_rf_calculators_tab(QTabWidget *tabs)
 	matching_layout->addRow(QStringLiteral("Load resistance"), matching_load_resistance_box);
 	matching_layout->addRow(matching_button);
 	matching_layout->addRow(matching_result_text);
-	rf_tabs->addTab(create_scroll_area(matching_tab, rf_tabs, QStringLiteral("Matching network input area")), QStringLiteral("Matching"));
+	rf_tabs->addTab(create_scroll_area(matching_tab, rf_tabs, QStringLiteral("Matching network input area")), tr("Matching"));
 
 	QWidget *impedance_tab = new QWidget(rf_tabs);
 	QFormLayout *impedance_layout = new QFormLayout(impedance_tab);
@@ -1095,7 +1095,7 @@ MainWindow::create_rf_calculators_tab(QTabWidget *tabs)
 	impedance_layout->addRow(QStringLiteral("Reactance X"), impedance_reactance_box);
 	impedance_layout->addRow(impedance_button);
 	impedance_layout->addRow(impedance_result_text);
-	rf_tabs->addTab(create_scroll_area(impedance_tab, rf_tabs, QStringLiteral("Impedance helper input area")), QStringLiteral("Impedance"));
+	rf_tabs->addTab(create_scroll_area(impedance_tab, rf_tabs, QStringLiteral("Impedance helper input area")), tr("Impedance"));
 
 	QWidget *loading_coil_tab = new QWidget(rf_tabs);
 	QFormLayout *loading_coil_layout = new QFormLayout(loading_coil_tab);
@@ -1112,7 +1112,7 @@ MainWindow::create_rf_calculators_tab(QTabWidget *tabs)
 	loading_coil_layout->addRow(QStringLiteral("Antenna capacitance"), loading_coil_capacitance_box);
 	loading_coil_layout->addRow(loading_coil_button);
 	loading_coil_layout->addRow(loading_coil_result_text);
-	rf_tabs->addTab(create_scroll_area(loading_coil_tab, rf_tabs, QStringLiteral("Loading coil input area")), QStringLiteral("Loading coil"));
+	rf_tabs->addTab(create_scroll_area(loading_coil_tab, rf_tabs, QStringLiteral("Loading coil input area")), tr("Loading coil"));
 
 	QWidget *lc_tab = new QWidget(rf_tabs);
 	QFormLayout *lc_layout = new QFormLayout(lc_tab);
@@ -1132,7 +1132,7 @@ MainWindow::create_rf_calculators_tab(QTabWidget *tabs)
 	lc_layout->addRow(QStringLiteral("Frequency for reverse"), lc_frequency_box);
 	lc_layout->addRow(lc_button);
 	lc_layout->addRow(lc_result_text);
-	rf_tabs->addTab(create_scroll_area(lc_tab, rf_tabs, QStringLiteral("LC resonance input area")), QStringLiteral("LC resonance"));
+	rf_tabs->addTab(create_scroll_area(lc_tab, rf_tabs, QStringLiteral("LC resonance input area")), tr("LC resonance"));
 
 	QWidget *trap_tab = new QWidget(rf_tabs);
 	QFormLayout *trap_layout = new QFormLayout(trap_tab);
@@ -1155,7 +1155,7 @@ MainWindow::create_rf_calculators_tab(QTabWidget *tabs)
 	trap_layout->addRow(QStringLiteral("Operating frequency"), trap_operating_frequency_box);
 	trap_layout->addRow(trap_button);
 	trap_layout->addRow(trap_result_text);
-	rf_tabs->addTab(create_scroll_area(trap_tab, rf_tabs, QStringLiteral("Trap calculator input area")), QStringLiteral("Trap"));
+	rf_tabs->addTab(create_scroll_area(trap_tab, rf_tabs, QStringLiteral("Trap calculator input area")), tr("Trap"));
 
 	QWidget *swr_tab = new QWidget(rf_tabs);
 	QFormLayout *swr_layout = new QFormLayout(swr_tab);
@@ -1173,7 +1173,7 @@ MainWindow::create_rf_calculators_tab(QTabWidget *tabs)
 	swr_layout->addRow(QStringLiteral("SWR"), swr_value_box);
 	swr_layout->addRow(swr_button);
 	swr_layout->addRow(swr_result_text);
-	rf_tabs->addTab(create_scroll_area(swr_tab, rf_tabs, QStringLiteral("SWR input area")), QStringLiteral("SWR / reflected power"));
+	rf_tabs->addTab(create_scroll_area(swr_tab, rf_tabs, QStringLiteral("SWR input area")), tr("SWR / reflected power"));
 
 	QWidget *horizon_tab = new QWidget(rf_tabs);
 	QFormLayout *horizon_layout = new QFormLayout(horizon_tab);
@@ -1190,10 +1190,10 @@ MainWindow::create_rf_calculators_tab(QTabWidget *tabs)
 	horizon_layout->addRow(QStringLiteral("RX antenna height"), horizon_rx_height_box);
 	horizon_layout->addRow(horizon_button);
 	horizon_layout->addRow(horizon_result_text);
-	rf_tabs->addTab(create_scroll_area(horizon_tab, rf_tabs, QStringLiteral("Radio horizon input area")), QStringLiteral("Radio horizon"));
+	rf_tabs->addTab(create_scroll_area(horizon_tab, rf_tabs, QStringLiteral("Radio horizon input area")), tr("Radio horizon"));
 
 	root_layout->addWidget(rf_tabs);
-	tabs->addTab(rf_tab, QStringLiteral("RF Calculators"));
+	tabs->addTab(rf_tab, tr("RF Calculators"));
 
 	connect(coil_button, &QPushButton::clicked, this, &MainWindow::calculate_coil);
 	connect(choke_button, &QPushButton::clicked, this, &MainWindow::calculate_choke);
@@ -1294,7 +1294,7 @@ MainWindow::create_band_propagation_tab(QTabWidget *tabs)
 	splitter->setSizes({210, 260, 230});
 
 	root_layout->addWidget(splitter);
-	tabs->addTab(tab, QStringLiteral("Band & Propagation"));
+	tabs->addTab(tab, tr("Band & Propagation"));
 
 	connect(propagation_band_filter_box, &QComboBox::currentIndexChanged, this, &MainWindow::populate_propagation_band_selector);
 	connect(propagation_band_box, &QComboBox::currentIndexChanged, this, &MainWindow::update_reference_panel);

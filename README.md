@@ -33,6 +33,7 @@ Progress:
 - RF helper calculators for air-core coils, RF chokes, complex impedance, L-network matching, loading coils, LC resonance, SWR/reflected power, coax loss, and radio horizon
 - amateur band, broadcast/reference band, and cautious propagation notes
 - LF/MF antenna guidance for full-size references, loaded verticals, top-loaded antennas, and receive-only compact antennas
+- Qt Linguist translation support with a starter Russian translation catalog
 - a small pure C++ calculator test executable
 
 ## Screenshots
@@ -65,6 +66,7 @@ See [BUILDING.md](BUILDING.md) for platform notes and CMake commands.
 - [Project plan](docs/PROJECT_PLAN.md)
 - [Formulas and sources](docs/FORMULAS_AND_SOURCES.md)
 - [Band reference](docs/BAND_REFERENCE.md)
+- [Translations](translations/README.md)
 
 ## Packaging
 
