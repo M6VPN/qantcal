@@ -7,7 +7,10 @@
 #include <QPageSize>
 #include <QPdfWriter>
 #include <QPen>
+#include <QPolygonF>
 #include <QTextOption>
+
+#include <limits>
 
 namespace qantcal::guides {
 
@@ -113,22 +116,146 @@ draw_table(QPainter &painter, RenderState &state, const QVector<GuideTableRow> &
 	state.y += 10.0;
 }
 
-void
-draw_diagram_placeholder(QPainter &painter, RenderState &state)
+QVector<QPointF>
+diagram_points(const project::DiagramItemDescriptor &item)
 {
-	const QRectF diagram_rect(state.content_rect.left(), state.y, state.content_rect.width(), 150.0);
-	ensure_space(painter, state, diagram_rect.height() + 12.0);
+	QVector<QPointF> points;
+
+	if (item.points.isEmpty()) {
+		points.append(item.position);
+		return points;
+	}
+	for (const QPointF &point : item.points)
+		points.append(item.position + point);
+
+	return points;
+}
+
+QRectF
+diagram_bounds(const QVector<project::DiagramItemDescriptor> &items)
+{
+	double left = std::numeric_limits<double>::max();
+	double top = std::numeric_limits<double>::max();
+	double right = std::numeric_limits<double>::lowest();
+	double bottom = std::numeric_limits<double>::lowest();
+
+	for (const project::DiagramItemDescriptor &item : items) {
+		for (const QPointF &point : diagram_points(item)) {
+			left = qMin(left, point.x());
+			top = qMin(top, point.y());
+			right = qMax(right, point.x());
+			bottom = qMax(bottom, point.y());
+		}
+	}
+
+	if (left == std::numeric_limits<double>::max())
+		return QRectF(-1.0, -1.0, 2.0, 2.0);
+	if (qFuzzyCompare(left + 1.0, right + 1.0)) {
+		left -= 1.0;
+		right += 1.0;
+	}
+	if (qFuzzyCompare(top + 1.0, bottom + 1.0)) {
+		top -= 1.0;
+		bottom += 1.0;
+	}
+
+	return QRectF(QPointF(left, top), QPointF(right, bottom));
+}
+
+QPointF
+map_diagram_point(const QPointF &point, const QRectF &bounds, const QRectF &target)
+{
+	const double padding = 16.0;
+	const QRectF draw_rect = target.adjusted(padding, padding, -padding, -padding);
+	const double scale = qMin(draw_rect.width() / bounds.width(), draw_rect.height() / bounds.height());
+	const QSizeF scaled_size(bounds.width() * scale, bounds.height() * scale);
+	const QPointF origin(
+		draw_rect.left() + (draw_rect.width() - scaled_size.width()) / 2.0,
+		draw_rect.top() + (draw_rect.height() - scaled_size.height()) / 2.0
+	);
+
+	return QPointF(
+		origin.x() + (point.x() - bounds.left()) * scale,
+		origin.y() + (point.y() - bounds.top()) * scale
+	);
+}
+
+void
+draw_diagram_fallback(QPainter &painter, RenderState &state)
+{
+	const double diagram_height = 150.0;
+	ensure_space(painter, state, diagram_height + 12.0);
+	const QRectF diagram_rect(state.content_rect.left(), state.y, state.content_rect.width(), diagram_height);
 
 	painter.setPen(QPen(QColor(60, 90, 140), 2.0));
 	painter.drawRect(diagram_rect);
-	painter.drawLine(diagram_rect.left() + 50.0, diagram_rect.center().y(), diagram_rect.right() - 50.0, diagram_rect.center().y());
 	painter.setPen(Qt::black);
-	painter.drawText(diagram_rect.adjusted(10.0, 10.0, -10.0, -10.0), Qt::AlignLeft | Qt::AlignTop, QStringLiteral("Diagram snapshot placeholder"));
+	painter.drawText(diagram_rect.adjusted(10.0, 10.0, -10.0, -10.0), Qt::AlignLeft | Qt::AlignTop, QStringLiteral("No diagram available"));
 	state.y += diagram_rect.height() + 12.0;
 }
 
 void
-draw_section(QPainter &painter, RenderState &state, const GuideSection &section, const GuideExportOptions &options, const QFont &heading_font, const QFont &body_font)
+draw_diagram(QPainter &painter, RenderState &state, const GuideDocument &document, const QFont &font)
+{
+	const double diagram_height = 170.0;
+	ensure_space(painter, state, diagram_height + 12.0);
+	const QRectF diagram_rect(state.content_rect.left(), state.y, state.content_rect.width(), diagram_height);
+
+	if (document.diagram_items.isEmpty()) {
+		draw_diagram_fallback(painter, state);
+		return;
+	}
+
+	const QRectF bounds = diagram_bounds(document.diagram_items);
+	const QPen frame_pen(QColor(130, 130, 130), 1.0);
+	const QPen wire_pen(QColor(30, 90, 150), 2.2);
+	const QPen yagi_pen(QColor(30, 90, 150), 2.0);
+	const QPen feed_pen(QColor(170, 60, 40), 1.6);
+	QFont label_font = font;
+	label_font.setPointSize(8);
+
+	painter.save();
+	painter.setFont(label_font);
+	painter.setRenderHint(QPainter::Antialiasing, true);
+	painter.setPen(frame_pen);
+	painter.drawRect(diagram_rect);
+
+	for (const project::DiagramItemDescriptor &item : document.diagram_items) {
+		const QVector<QPointF> points = diagram_points(item);
+		QPolygonF mapped_points;
+
+		for (const QPointF &point : points)
+			mapped_points << map_diagram_point(point, bounds, diagram_rect);
+		if (mapped_points.size() >= 2) {
+			painter.setPen(item.kind == QStringLiteral("yagi_element") ? yagi_pen : wire_pen);
+			for (int i = 1; i < mapped_points.size(); ++i)
+				painter.drawLine(mapped_points[i - 1], mapped_points[i]);
+		}
+
+		const QPointF label_point = mapped_points.isEmpty()
+			? diagram_rect.center()
+			: mapped_points.boundingRect().center();
+		if (item.kind == QStringLiteral("yagi_element")) {
+			painter.setPen(feed_pen);
+			painter.drawEllipse(label_point, 3.5, 3.5);
+		}
+		if (!item.label.isEmpty()) {
+			QString label = item.label;
+			if (item.length_metres > 0.0) {
+				label += QStringLiteral(" / %1")
+					.arg(QString::fromStdString(calculators::format_length(item.length_metres, document.length_unit)));
+			}
+			painter.setPen(Qt::black);
+			painter.drawText(QRectF(label_point.x() + 5.0, label_point.y() + 5.0, 190.0, 28.0), Qt::AlignLeft | Qt::AlignTop, label);
+		}
+	}
+
+	painter.restore();
+	state.y += diagram_rect.height() + 12.0;
+}
+
+void
+draw_section(QPainter &painter, RenderState &state, const GuideDocument &document, const GuideSection &section, const GuideExportOptions &options, const QFont &heading_font, const QFont &body_font)
 {
 	if (section.title == QStringLiteral("Diagram") && !options.include_diagram)
 		return;
@@ -147,7 +274,7 @@ draw_section(QPainter &painter, RenderState &state, const GuideSection &section,
 
 	if (section.title == QStringLiteral("Diagram")) {
 		draw_wrapped_text(painter, state, section.body_text, body_font, 4.0);
-		draw_diagram_placeholder(painter, state);
+		draw_diagram(painter, state, document, body_font);
 		return;
 	}
 
@@ -197,7 +324,7 @@ GuideRenderer::render_to_painter(const GuideDocument &document, QPainter &painte
 	);
 
 	for (const GuideSection &section : document.sections)
-		draw_section(painter, state, section, options, heading_font, body_font);
+		draw_section(painter, state, document, section, options, heading_font, body_font);
 
 	draw_footer(painter, state);
 

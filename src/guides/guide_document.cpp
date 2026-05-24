@@ -261,6 +261,7 @@ create_project_guide_document(
 	document.project_title = project.title;
 	document.title = project.title.isEmpty() ? QStringLiteral("qantcal antenna guide") : project.title;
 	document.velocity_factor = project.velocity_factor;
+	document.diagram_items = project.diagram_items;
 
 	for (const project::AntennaElement &element : project.elements) {
 		if (project.antenna_type == calculators::AntennaType::Yagi) {

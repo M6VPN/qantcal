@@ -32,6 +32,35 @@ sample_document()
 }
 
 qantcal::guides::GuideDocument
+sample_line_diagram_document()
+{
+	qantcal::project::AntennaProject project = qantcal::project::default_project();
+	qantcal::project::AntennaTarget target;
+	qantcal::project::AntennaElement element;
+	qantcal::project::DiagramItemDescriptor item;
+
+	project.title = QStringLiteral("PDF dipole");
+	target.band_name = QStringLiteral("40m");
+	target.enabled = true;
+	target.frequency_mhz = 7.1;
+	project.targets.append(target);
+	element.frequency_mhz = 7.1;
+	element.label = QStringLiteral("40m dipole");
+	element.length_metres = 20.057;
+	element.role = QStringLiteral("calculated_element");
+	project.elements.append(element);
+	item.id = QStringLiteral("line-1");
+	item.kind = QStringLiteral("line");
+	item.label = QStringLiteral("40m dipole");
+	item.length_metres = 20.057;
+	item.points.append(QPointF(-220.0, 0.0));
+	item.points.append(QPointF(220.0, 0.0));
+	project.diagram_items.append(item);
+
+	return qantcal::guides::create_project_guide_document(project, qantcal::calculators::LengthUnit::Metres);
+}
+
+qantcal::guides::GuideDocument
 sample_yagi_document()
 {
 	qantcal::project::AntennaProject project = qantcal::project::default_project();
@@ -52,6 +81,15 @@ sample_yagi_document()
 	element.length_metres = 1.036;
 	element.role = QStringLiteral("reflector");
 	project.elements.append(element);
+	qantcal::project::DiagramItemDescriptor item;
+	item.id = QStringLiteral("reflector");
+	item.kind = QStringLiteral("yagi_element");
+	item.label = QStringLiteral("Reflector");
+	item.length_metres = 1.036;
+	item.position = QPointF(-170.0, 0.0);
+	item.points.append(QPointF(0.0, -85.0));
+	item.points.append(QPointF(0.0, 85.0));
+	project.diagram_items.append(item);
 
 	return qantcal::guides::create_project_guide_document(project, qantcal::calculators::LengthUnit::Centimetres);
 }
@@ -85,16 +123,35 @@ test_render_empty_diagram_document()
 }
 
 void
-test_render_yagi_pdf()
+test_render_line_diagram_pdf()
 {
 	QTemporaryFile file;
 	qantcal::guides::GuideRenderer renderer;
+	const qantcal::guides::GuideDocument document = sample_line_diagram_document();
 
+	assert(document.diagram_items.size() == 1);
 	assert(file.open());
 	const QString path = file.fileName();
 	file.close();
 
-	assert(renderer.render_to_pdf(sample_yagi_document(), path, qantcal::guides::default_export_options()));
+	assert(renderer.render_to_pdf(document, path, qantcal::guides::default_export_options()));
+	assert(QFile::exists(path));
+	assert(QFile(path).size() > 0);
+}
+
+void
+test_render_yagi_pdf()
+{
+	QTemporaryFile file;
+	qantcal::guides::GuideRenderer renderer;
+	const qantcal::guides::GuideDocument document = sample_yagi_document();
+
+	assert(document.diagram_items.size() == 1);
+	assert(file.open());
+	const QString path = file.fileName();
+	file.close();
+
+	assert(renderer.render_to_pdf(document, path, qantcal::guides::default_export_options()));
 	assert(QFile::exists(path));
 	assert(QFile(path).size() > 0);
 }
@@ -108,6 +165,7 @@ main(int argc, char *argv[])
 
 	test_export_options_defaults();
 	test_render_empty_diagram_document();
+	test_render_line_diagram_pdf();
 	test_render_yagi_pdf();
 
 	return 0;

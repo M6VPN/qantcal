@@ -27,6 +27,7 @@ struct GuideDocument {
 	QString title;
 	double velocity_factor = calculators::DEFAULT_WIRE_FACTOR;
 	calculators::LengthUnit length_unit = calculators::LengthUnit::Metres;
+	QVector<project::DiagramItemDescriptor> diagram_items;
 	QVector<GuideSection> sections;
 };
 

@@ -49,7 +49,8 @@ const QVector<BandReference> &
 band_references()
 {
 	static const QVector<BandReference> bands = []() {
-		QVector<BandReference> references = {
+		QVector<BandReference> references = lf_mf_band_references();
+		const QVector<BandReference> amateur_bands = {
 			make_band(QStringLiteral("160m"), 1.800, 2.000, 1.900, QStringLiteral("160 metres"), QStringLiteral("MF"), QStringLiteral("Large antennas, loaded verticals, inverted Ls, and compact compromises are common."), QStringLiteral("Mostly night-time regional and DX skywave with high noise and ground losses."), QStringLiteral("Top-band operating is installation-sensitive and often noise-limited.")),
 			make_band(QStringLiteral("80m"), 3.500, 4.000, 3.650, QStringLiteral("80 metres"), QStringLiteral("HF"), QStringLiteral("Dipoles, inverted Vees, verticals, loops, and loaded wires are common."), QStringLiteral("Night-time regional and DX skywave, with daytime shorter-range use."), QStringLiteral("Useful for local to regional contacts and night DX when conditions allow.")),
 			make_band(QStringLiteral("60m"), 5.000, 5.500, 5.350, QStringLiteral("60 metres"), QStringLiteral("HF"), QStringLiteral("Wires and compact dipoles are practical, but allocations vary strongly by country."), QStringLiteral("Often useful for NVIS and regional skywave."), QStringLiteral("Treat as highly licence-dependent and channel/band-plan specific.")),
@@ -65,7 +66,7 @@ band_references()
 			make_band(QStringLiteral("2m"), 144.000, 148.000, 144.300, QStringLiteral("2 metres"), QStringLiteral("VHF"), QStringLiteral("Verticals, small Yagis, and portable antennas are practical."), QStringLiteral("Mostly line-of-sight, with tropospheric, satellite, and occasional enhanced paths."), QStringLiteral("Height, terrain, antenna gain, and local noise dominate practical range.")),
 			make_band(QStringLiteral("70cm"), 430.000, 440.000, 433.500, QStringLiteral("70 centimetres"), QStringLiteral("UHF"), QStringLiteral("Compact verticals, handheld antennas, and small Yagis are practical."), QStringLiteral("Mostly line-of-sight with strong terrain, building, and foliage effects."), QStringLiteral("Useful for local, repeater, satellite, and short-range work where allocated."))
 		};
-		references.append(lf_mf_band_references());
+		references.append(amateur_bands);
 		references.append(broadcast_band_references());
 		return references;
 	}();

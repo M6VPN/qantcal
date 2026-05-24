@@ -786,7 +786,7 @@ MainWindow::populate_band_selector()
 			selected_index = band_box->count() - 1;
 	}
 
-	band_box->setCurrentIndex(selected_index >= 0 ? selected_index : qMin(4, band_box->count() - 1));
+	band_box->setCurrentIndex(selected_index >= 0 ? selected_index : qMin(1, band_box->count() - 1));
 }
 
 void
