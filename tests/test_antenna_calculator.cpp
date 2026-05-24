@@ -114,6 +114,20 @@ test_efhw_equals_half_wave_starting_length()
 }
 
 void
+test_folded_dipole_equals_half_wave_starting_length()
+{
+	const qantcal::calculators::AntennaCalculationResult dipole =
+		calculate(qantcal::calculators::AntennaType::HalfWaveDipole, 14.2);
+	const qantcal::calculators::AntennaCalculationResult folded =
+		calculate(qantcal::calculators::AntennaType::FoldedDipole, 14.2);
+
+	assert(folded.ok);
+	assert(near_value(folded.total_length_m, dipole.total_length_m, 0.001));
+	assert(near_value(folded.leg_length_m, dipole.leg_length_m, 0.001));
+	assert(contains_text(folded.matching_note, "4 times"));
+}
+
+void
 test_formula_reference_bands()
 {
 	const qantcal::calculators::AntennaCalculationResult top_band =
@@ -354,6 +368,22 @@ test_reverse_efhw_length_to_frequency()
 }
 
 void
+test_reverse_folded_dipole_length_to_frequency()
+{
+	qantcal::calculators::AntennaCalculationInput input;
+
+	input.antenna_type = qantcal::calculators::AntennaType::FoldedDipole;
+	input.design_mode = qantcal::calculators::DesignMode::LengthToFrequency;
+	input.length_m = expected_length(14.2, 0.5);
+
+	const qantcal::calculators::AntennaCalculationResult result =
+		qantcal::calculators::calculate_antenna(input);
+
+	assert(result.ok);
+	assert(near_value(result.frequency_mhz, 14.2, 0.000001));
+}
+
+void
 test_reverse_loop_length_to_frequency()
 {
 	qantcal::calculators::AntennaCalculationInput input;
@@ -446,6 +476,7 @@ main()
 	test_dipole_7_1_mhz();
 	test_effectively_impossible_low_frequency_warns();
 	test_efhw_equals_half_wave_starting_length();
+	test_folded_dipole_equals_half_wave_starting_length();
 	test_formula_reference_bands();
 	test_full_wave_loop();
 	test_lf_vlf_vertical_warns();
@@ -462,6 +493,7 @@ main()
 	test_random_wire_near_half_wave_warns();
 	test_reverse_centimetres_to_frequency();
 	test_reverse_efhw_length_to_frequency();
+	test_reverse_folded_dipole_length_to_frequency();
 	test_reverse_length_to_frequency();
 	test_reverse_loop_length_to_frequency();
 	test_reverse_small_length_warns();

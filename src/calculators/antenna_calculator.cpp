@@ -28,6 +28,7 @@ base_wave_ratio(AntennaType antenna_type)
 {
 	switch (antenna_type) {
 	case AntennaType::HalfWaveDipole:
+	case AntennaType::FoldedDipole:
 	case AntennaType::EndFedHalfWave:
 	case AntennaType::InvertedVee:
 		return 0.5;
@@ -92,6 +93,7 @@ counterpoise_note_for_type(AntennaType antenna_type)
 	case AntennaType::RandomWire:
 		return "A counterpoise, station ground path, or installation-specific return path may affect tuning and RF behaviour.";
 	case AntennaType::HalfWaveDipole:
+	case AntennaType::FoldedDipole:
 	case AntennaType::FullWaveLoop:
 	case AntennaType::InvertedVee:
 	case AntennaType::Yagi:
@@ -108,6 +110,8 @@ matching_note_for_type(AntennaType antenna_type)
 	case AntennaType::HalfWaveDipole:
 	case AntennaType::InvertedVee:
 		return "Feed-point impedance depends on height, angle, nearby objects, and feed arrangement.";
+	case AntennaType::FoldedDipole:
+		return "A two-wire folded dipole is often near 4 times the impedance of a simple dipole and normally needs balanced feed or a suitable transformer.";
 	case AntennaType::QuarterWaveVertical:
 		return "Matching depends strongly on the radial or counterpoise system and ground conditions.";
 	case AntennaType::EndFedHalfWave:
@@ -132,6 +136,7 @@ trimming_note_for_type(AntennaType antenna_type)
 	case AntennaType::RandomWire:
 		return "Do not treat this as a resonant cut length. Model and test the full matching and counterpoise system.";
 	case AntennaType::HalfWaveDipole:
+	case AntennaType::FoldedDipole:
 	case AntennaType::QuarterWaveVertical:
 	case AntennaType::EndFedHalfWave:
 	case AntennaType::FullWaveLoop:
@@ -148,6 +153,7 @@ populate_type_lengths(AntennaCalculationResult &result, AntennaType antenna_type
 {
 	switch (antenna_type) {
 	case AntennaType::HalfWaveDipole:
+	case AntennaType::FoldedDipole:
 	case AntennaType::InvertedVee:
 		result.total_length_m = length_m;
 		result.total_length_ft = metres_to_feet(length_m);
@@ -268,6 +274,8 @@ antenna_type_label(AntennaType antenna_type)
 	switch (antenna_type) {
 	case AntennaType::HalfWaveDipole:
 		return "Half-wave dipole";
+	case AntennaType::FoldedDipole:
+		return "Folded dipole";
 	case AntennaType::QuarterWaveVertical:
 		return "Quarter-wave vertical";
 	case AntennaType::EndFedHalfWave:

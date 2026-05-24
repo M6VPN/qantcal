@@ -4,6 +4,7 @@
 #include "main_window.h"
 
 #include <QApplication>
+#include <QComboBox>
 #include <QScrollArea>
 #include <QTabWidget>
 #include <QTextEdit>
@@ -18,6 +19,18 @@ process_resize(qantcal::MainWindow &window, int width, int height)
 	window.resize(width, height);
 	window.show();
 	QApplication::processEvents();
+}
+
+void
+test_antenna_selector_contains_folded_dipole(const qantcal::MainWindow &window)
+{
+	const QList<QComboBox *> combo_boxes = window.findChildren<QComboBox *>();
+	bool found = false;
+
+	for (const QComboBox *combo_box : combo_boxes)
+		found = found || combo_box->findText(QStringLiteral("Folded dipole")) >= 0;
+
+	assert(found);
 }
 
 void
@@ -73,11 +86,13 @@ main(int argc, char *argv[])
 	qantcal::MainWindow window;
 
 	process_resize(window, 800, 600);
+	test_antenna_selector_contains_folded_dipole(window);
 	test_scroll_areas_are_present(window);
 	test_read_only_outputs_have_accessible_names(window);
 	test_tabs_are_present(window);
 
 	process_resize(window, 480, 720);
+	test_antenna_selector_contains_folded_dipole(window);
 	test_scroll_areas_are_present(window);
 	test_read_only_outputs_have_accessible_names(window);
 	test_tabs_are_present(window);

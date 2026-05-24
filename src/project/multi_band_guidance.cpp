@@ -79,6 +79,7 @@ bool
 is_wire_antenna(calculators::AntennaType antenna_type)
 {
 	return antenna_type == calculators::AntennaType::HalfWaveDipole
+		|| antenna_type == calculators::AntennaType::FoldedDipole
 		|| antenna_type == calculators::AntennaType::InvertedVee
 		|| antenna_type == calculators::AntennaType::EndFedHalfWave
 		|| antenna_type == calculators::AntennaType::FullWaveLoop

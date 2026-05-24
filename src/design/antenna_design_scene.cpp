@@ -79,6 +79,7 @@ AntennaDesignScene::show_antenna_diagram(
 
 	switch (result.antenna_type) {
 	case calculators::AntennaType::HalfWaveDipole:
+	case calculators::AntennaType::FoldedDipole:
 		addLine(-230.0, 0.0, -12.0, 0.0, wire_pen)->setFlag(QGraphicsItem::ItemIsSelectable, true);
 		addLine(12.0, 0.0, 230.0, 0.0, wire_pen)->setFlag(QGraphicsItem::ItemIsSelectable, true);
 		addEllipse(-12.0, -12.0, 24.0, 24.0, feed_pen, feed_brush);

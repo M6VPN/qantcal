@@ -25,7 +25,7 @@ Progress:
 - selectable length units with saved preferences
 - qantcal JSON project save/load groundwork
 - simple schematic diagrams using `QGraphicsScene` and `QGraphicsView`
-- simple dipole, inverted Vee, vertical, EFHW, and loop calculations
+- simple dipole, folded dipole, inverted Vee, vertical, EFHW, and loop calculations
 - first-pass Yagi starting dimensions for 2 to 10 elements
 - basic PDF export
 - printable PDF export with project sections, assumptions, and safety notes

@@ -135,6 +135,19 @@ test_default_round_trip()
 }
 
 void
+test_folded_dipole_type_round_trip()
+{
+	qantcal::project::AntennaProject project = sample_project(1);
+	qantcal::project::AntennaProject parsed;
+	QString error;
+
+	project.antenna_type = qantcal::calculators::AntennaType::FoldedDipole;
+
+	assert(qantcal::project::from_json(qantcal::project::to_json(project), parsed, error));
+	assert(parsed.antenna_type == qantcal::calculators::AntennaType::FoldedDipole);
+}
+
+void
 test_broadcast_service_round_trip()
 {
 	const qantcal::project::AntennaProject project = sample_broadcast_project();
@@ -417,6 +430,7 @@ main()
 {
 	test_broadcast_service_round_trip();
 	test_default_round_trip();
+	test_folded_dipole_type_round_trip();
 	test_length_unit_round_trip();
 	test_lf_mf_design_invalid_enabled_capacitance_rejected();
 	test_lf_mf_design_non_object_rejected();

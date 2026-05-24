@@ -630,6 +630,7 @@ MainWindow::create_antenna_tab(QTabWidget *tabs)
 	populate_band_selector();
 
 	antenna_type_box->addItem(QStringLiteral("Half-wave dipole"), static_cast<int>(calculators::AntennaType::HalfWaveDipole));
+	antenna_type_box->addItem(QStringLiteral("Folded dipole"), static_cast<int>(calculators::AntennaType::FoldedDipole));
 	antenna_type_box->addItem(QStringLiteral("Quarter-wave vertical"), static_cast<int>(calculators::AntennaType::QuarterWaveVertical));
 	antenna_type_box->addItem(QStringLiteral("End-fed half-wave"), static_cast<int>(calculators::AntennaType::EndFedHalfWave));
 	antenna_type_box->addItem(QStringLiteral("Full-wave loop"), static_cast<int>(calculators::AntennaType::FullWaveLoop));
