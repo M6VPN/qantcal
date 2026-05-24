@@ -27,9 +27,11 @@
 #include <QDoubleSpinBox>
 #include <QFileDialog>
 #include <QFormLayout>
+#include <QFrame>
 #include <QGraphicsView>
 #include <QGroupBox>
 #include <QHBoxLayout>
+#include <QKeySequence>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
@@ -38,7 +40,9 @@
 #include <QPrintDialog>
 #include <QPrinter>
 #include <QPushButton>
+#include <QScrollArea>
 #include <QSignalBlocker>
+#include <QSizePolicy>
 #include <QSplitter>
 #include <QSpinBox>
 #include <QStatusBar>
@@ -157,6 +161,48 @@ create_positive_spin_box(QWidget *parent, double maximum, int decimals, const QS
 	box->setValue(value);
 
 	return box;
+}
+
+void
+configure_form_layout(QFormLayout *layout)
+{
+	layout->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
+	layout->setRowWrapPolicy(QFormLayout::WrapLongRows);
+	layout->setLabelAlignment(Qt::AlignLeft);
+}
+
+void
+configure_result_text(QTextEdit *text, const QString &name, const QString &description)
+{
+	text->setReadOnly(true);
+	text->setFontFamily(QStringLiteral("monospace"));
+	text->setMinimumHeight(120);
+	text->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+	text->setAccessibleName(name);
+	text->setAccessibleDescription(description);
+}
+
+QScrollArea *
+create_scroll_area(QWidget *content, QWidget *parent, const QString &name)
+{
+	QScrollArea *area = new QScrollArea(parent);
+
+	area->setWidget(content);
+	area->setWidgetResizable(true);
+	area->setFrameShape(QFrame::NoFrame);
+	area->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+	area->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+	area->setAccessibleName(name);
+
+	return area;
+}
+
+void
+set_widget_hint(QWidget *widget, const QString &name, const QString &description)
+{
+	widget->setAccessibleName(name);
+	widget->setAccessibleDescription(description);
+	widget->setToolTip(description);
 }
 
 reference::BandReferenceFilter
@@ -383,6 +429,21 @@ MainWindow::create_actions()
 	QAction *pan_action = view_menu->addAction(QStringLiteral("Pan Mode"));
 	pan_action->setCheckable(true);
 
+	new_action->setShortcut(QKeySequence::New);
+	open_action->setShortcut(QKeySequence::Open);
+	save_action->setShortcut(QKeySequence::Save);
+	save_as_action->setShortcut(QKeySequence::SaveAs);
+	print_action->setShortcut(QKeySequence::Print);
+	export_pdf_action->setShortcut(QKeySequence(QStringLiteral("Ctrl+E")));
+	exit_action->setShortcut(QKeySequence::Quit);
+	undo_action->setShortcut(QKeySequence::Undo);
+	redo_action->setShortcut(QKeySequence::Redo);
+	zoom_in_action->setShortcut(QKeySequence::ZoomIn);
+	zoom_out_action->setShortcut(QKeySequence::ZoomOut);
+	reset_zoom_action->setShortcut(QKeySequence(QStringLiteral("Ctrl+0")));
+	fit_design_action->setShortcut(QKeySequence(QStringLiteral("Ctrl+F")));
+	pan_action->setShortcut(QKeySequence(QStringLiteral("Ctrl+Shift+P")));
+
 	edit_menu->addAction(undo_action);
 	edit_menu->addAction(redo_action);
 
@@ -408,6 +469,9 @@ MainWindow::create_central_widget()
 	QVBoxLayout *root_layout = new QVBoxLayout(central);
 	QTabWidget *tabs = new QTabWidget(central);
 
+	tabs->setAccessibleName(QStringLiteral("qantcal calculator tabs"));
+	tabs->setAccessibleDescription(QStringLiteral("Switches between antenna, LF/MF, RF, and propagation calculators."));
+
 	create_antenna_tab(tabs);
 	create_lf_mf_tab(tabs);
 	create_rf_calculators_tab(tabs);
@@ -423,8 +487,10 @@ MainWindow::create_antenna_tab(QTabWidget *tabs)
 	QWidget *central = new QWidget(tabs);
 	QSplitter *splitter = new QSplitter(Qt::Horizontal, central);
 	QVBoxLayout *root_layout = new QVBoxLayout(central);
-	QGroupBox *input_group = new QGroupBox(QStringLiteral("Calculator"), splitter);
+	QGroupBox *input_group = new QGroupBox(QStringLiteral("Calculator"), central);
 	QFormLayout *input_layout = new QFormLayout(input_group);
+
+	configure_form_layout(input_layout);
 
 	band_box = new QComboBox(input_group);
 	band_filter_box = new QComboBox(input_group);
@@ -437,6 +503,18 @@ MainWindow::create_antenna_tab(QTabWidget *tabs)
 	velocity_factor_box = new QDoubleSpinBox(input_group);
 	project_notes_edit = new QTextEdit(input_group);
 	calculate_button = new QPushButton(QStringLiteral("Calculate"), input_group);
+
+	set_widget_hint(project_title_box, QStringLiteral("Project title"), QStringLiteral("Names the current antenna project."));
+	set_widget_hint(band_filter_box, QStringLiteral("Band filter"), QStringLiteral("Limits the band selector to amateur, broadcast, or all references."));
+	set_widget_hint(band_box, QStringLiteral("Band"), QStringLiteral("Selects a reference band and sets the design frequency."));
+	set_widget_hint(antenna_type_box, QStringLiteral("Antenna type"), QStringLiteral("Selects the antenna design to calculate."));
+	set_widget_hint(design_mode_box, QStringLiteral("Design mode"), QStringLiteral("Chooses whether to calculate length from frequency or frequency from length."));
+	set_widget_hint(length_unit_box, QStringLiteral("Length unit"), QStringLiteral("Sets the displayed unit for antenna dimensions."));
+	set_widget_hint(frequency_box, QStringLiteral("Frequency"), QStringLiteral("Design frequency in MHz."));
+	set_widget_hint(length_box, QStringLiteral("Wire or element length"), QStringLiteral("Existing wire or element length used for length to frequency mode."));
+	set_widget_hint(velocity_factor_box, QStringLiteral("Shortening factor"), QStringLiteral("Velocity or shortening factor applied to calculated wire length."));
+	set_widget_hint(project_notes_edit, QStringLiteral("Project notes"), QStringLiteral("Optional notes saved with the antenna project."));
+	set_widget_hint(calculate_button, QStringLiteral("Calculate antenna"), QStringLiteral("Updates the antenna calculation and diagram."));
 
 	band_filter_box->addItem(QStringLiteral("Amateur"), static_cast<int>(reference::BandReferenceFilter::Amateur));
 	band_filter_box->addItem(QStringLiteral("Broadcast/Reference"), static_cast<int>(reference::BandReferenceFilter::BroadcastReference));
@@ -472,13 +550,19 @@ MainWindow::create_antenna_tab(QTabWidget *tabs)
 	velocity_factor_box->setSingleStep(0.005);
 	velocity_factor_box->setValue(calculators::DEFAULT_WIRE_FACTOR);
 	project_title_box->setText(current_project.title);
-	project_notes_edit->setMaximumHeight(80);
+	project_notes_edit->setMinimumHeight(72);
 	yagi_group = new QGroupBox(QStringLiteral("Yagi design"), input_group);
 	QFormLayout *yagi_layout = new QFormLayout(yagi_group);
 	yagi_element_count_box = new QSpinBox(yagi_group);
 	yagi_preset_box = new QComboBox(yagi_group);
 	yagi_element_diameter_box = new QDoubleSpinBox(yagi_group);
 	yagi_boom_correction_box = new QDoubleSpinBox(yagi_group);
+
+	configure_form_layout(yagi_layout);
+	set_widget_hint(yagi_element_count_box, QStringLiteral("Yagi element count"), QStringLiteral("Number of Yagi elements to calculate."));
+	set_widget_hint(yagi_preset_box, QStringLiteral("Yagi preset"), QStringLiteral("Spacing and boom-length preset for the Yagi design."));
+	set_widget_hint(yagi_element_diameter_box, QStringLiteral("Yagi element diameter"), QStringLiteral("Element diameter used for Yagi correction notes."));
+	set_widget_hint(yagi_boom_correction_box, QStringLiteral("Yagi boom correction"), QStringLiteral("Optional boom correction applied to Yagi element lengths."));
 
 	yagi_element_count_box->setRange(2, 10);
 	yagi_element_count_box->setValue(3);
@@ -527,26 +611,35 @@ MainWindow::create_antenna_tab(QTabWidget *tabs)
 	result_text = new QTextEdit(workspace);
 	target_list = new QListWidget(targets_group);
 
+	set_widget_hint(add_target_button, QStringLiteral("Add current target"), QStringLiteral("Adds the current band and frequency to the target band list."));
+	set_widget_hint(remove_target_button, QStringLiteral("Remove selected target"), QStringLiteral("Removes the selected target band."));
+	set_widget_hint(recalculate_targets_button, QStringLiteral("Recalculate target bands"), QStringLiteral("Updates all enabled target band calculations."));
+	set_widget_hint(target_list, QStringLiteral("Target band list"), QStringLiteral("Lists enabled target bands for the current project."));
+	design_view->setAccessibleName(QStringLiteral("Antenna design diagram"));
+	design_view->setAccessibleDescription(QStringLiteral("Shows the calculated antenna diagram and editable project layout."));
+
 	target_button_layout->addWidget(add_target_button);
 	target_button_layout->addWidget(remove_target_button);
 	target_button_layout->addWidget(recalculate_targets_button);
 	targets_layout->addWidget(target_list);
 	targets_layout->addLayout(target_button_layout);
 
-	design_view->setMinimumHeight(320);
-	result_text->setReadOnly(true);
-	result_text->setFontFamily(QStringLiteral("monospace"));
-	result_text->setMinimumHeight(160);
+	design_view->setMinimumHeight(220);
+	configure_result_text(result_text, QStringLiteral("Antenna calculation results"), QStringLiteral("Shows antenna dimensions, notes, and warnings."));
+	result_text->setMinimumHeight(140);
 
 	workspace_layout->addWidget(design_view, 3);
 	workspace_layout->addWidget(targets_group, 1);
 	workspace_layout->addWidget(new QLabel(QStringLiteral("Results"), workspace));
 	workspace_layout->addWidget(result_text, 1);
 
-	splitter->addWidget(input_group);
+	QScrollArea *input_area = create_scroll_area(input_group, splitter, QStringLiteral("Antenna calculator input area"));
+	splitter->addWidget(input_area);
 	splitter->addWidget(workspace);
 	splitter->setStretchFactor(0, 0);
 	splitter->setStretchFactor(1, 1);
+	splitter->setChildrenCollapsible(false);
+	splitter->setSizes({360, 740});
 
 	root_layout->addWidget(splitter);
 	tabs->addTab(central, QStringLiteral("Antenna Calculator"));
@@ -581,16 +674,27 @@ MainWindow::create_lf_mf_tab(QTabWidget *tabs)
 {
 	QWidget *tab = new QWidget(tabs);
 	QVBoxLayout *root_layout = new QVBoxLayout(tab);
-	QFormLayout *input_layout = new QFormLayout();
-	QPushButton *calculate_lf_mf_button = new QPushButton(QStringLiteral("Calculate"), tab);
+	QGroupBox *input_group = new QGroupBox(QStringLiteral("Inputs"), tab);
+	QFormLayout *input_layout = new QFormLayout(input_group);
+	QPushButton *calculate_lf_mf_button = new QPushButton(QStringLiteral("Calculate"), input_group);
 
-	lf_mf_band_box = new QComboBox(tab);
-	lf_mf_design_type_box = new QComboBox(tab);
-	lf_mf_frequency_box = create_positive_spin_box(tab, 30.0, 6, QStringLiteral(" MHz"), 0.475);
-	lf_mf_vertical_box = create_positive_spin_box(tab, 10000000.0, 3, QString(), 10.0);
-	lf_mf_horizontal_box = create_positive_spin_box(tab, 10000000.0, 3, QString(), 20.0);
-	lf_mf_capacitance_box = create_positive_spin_box(tab, 1000000.0, 3, QStringLiteral(" pF"), 0.0);
+	configure_form_layout(input_layout);
+
+	lf_mf_band_box = new QComboBox(input_group);
+	lf_mf_design_type_box = new QComboBox(input_group);
+	lf_mf_frequency_box = create_positive_spin_box(input_group, 30.0, 6, QStringLiteral(" MHz"), 0.475);
+	lf_mf_vertical_box = create_positive_spin_box(input_group, 10000000.0, 3, QString(), 10.0);
+	lf_mf_horizontal_box = create_positive_spin_box(input_group, 10000000.0, 3, QString(), 20.0);
+	lf_mf_capacitance_box = create_positive_spin_box(input_group, 1000000.0, 3, QStringLiteral(" pF"), 0.0);
 	lf_mf_result_text = new QTextEdit(tab);
+
+	set_widget_hint(lf_mf_band_box, QStringLiteral("LF/MF band"), QStringLiteral("Selects the LF or MF reference band."));
+	set_widget_hint(lf_mf_design_type_box, QStringLiteral("LF/MF design type"), QStringLiteral("Selects the LF or MF antenna style to estimate."));
+	set_widget_hint(lf_mf_frequency_box, QStringLiteral("LF/MF frequency"), QStringLiteral("Design frequency in MHz."));
+	set_widget_hint(lf_mf_vertical_box, QStringLiteral("LF/MF vertical height"), QStringLiteral("Available vertical height in the selected length unit."));
+	set_widget_hint(lf_mf_horizontal_box, QStringLiteral("LF/MF horizontal or top wire"), QStringLiteral("Available horizontal or top-loading wire length."));
+	set_widget_hint(lf_mf_capacitance_box, QStringLiteral("LF/MF estimated capacitance"), QStringLiteral("Optional capacitance estimate used for loading coil calculations."));
+	set_widget_hint(calculate_lf_mf_button, QStringLiteral("Calculate LF/MF antenna"), QStringLiteral("Updates the LF/MF antenna estimate."));
 
 	for (const reference::BandReference &band : reference::lf_mf_band_references()) {
 		lf_mf_band_box->addItem(
@@ -610,8 +714,7 @@ MainWindow::create_lf_mf_tab(QTabWidget *tabs)
 	lf_mf_design_type_box->addItem(calculators::lf_mf_design_type_label(calculators::LfMfDesignType::TopLoadedT), calculators::lf_mf_design_type_key(calculators::LfMfDesignType::TopLoadedT));
 	lf_mf_design_type_box->addItem(calculators::lf_mf_design_type_label(calculators::LfMfDesignType::ReceiveOnlyCompact), calculators::lf_mf_design_type_key(calculators::LfMfDesignType::ReceiveOnlyCompact));
 
-	lf_mf_result_text->setReadOnly(true);
-	lf_mf_result_text->setFontFamily(QStringLiteral("monospace"));
+	configure_result_text(lf_mf_result_text, QStringLiteral("LF/MF antenna results"), QStringLiteral("Shows LF/MF antenna estimates, loading notes, and warnings."));
 	update_lf_mf_length_inputs();
 
 	input_layout->addRow(QStringLiteral("Band"), lf_mf_band_box);
@@ -621,7 +724,7 @@ MainWindow::create_lf_mf_tab(QTabWidget *tabs)
 	input_layout->addRow(QStringLiteral("Horizontal/top wire"), lf_mf_horizontal_box);
 	input_layout->addRow(QStringLiteral("Estimated capacitance"), lf_mf_capacitance_box);
 	input_layout->addRow(calculate_lf_mf_button);
-	root_layout->addLayout(input_layout);
+	root_layout->addWidget(create_scroll_area(input_group, tab, QStringLiteral("LF/MF antenna input area")), 0);
 	root_layout->addWidget(lf_mf_result_text, 1);
 	tabs->addTab(tab, QStringLiteral("LF/MF Antennas"));
 
@@ -648,6 +751,9 @@ MainWindow::create_rf_calculators_tab(QTabWidget *tabs)
 	QVBoxLayout *root_layout = new QVBoxLayout(rf_tab);
 	QTabWidget *rf_tabs = new QTabWidget(rf_tab);
 
+	rf_tabs->setAccessibleName(QStringLiteral("RF calculator tabs"));
+	rf_tabs->setAccessibleDescription(QStringLiteral("Switches between coil, coax, LC, SWR, and radio horizon calculators."));
+
 	QWidget *coil_tab = new QWidget(rf_tabs);
 	QFormLayout *coil_layout = new QFormLayout(coil_tab);
 	QPushButton *coil_button = new QPushButton(QStringLiteral("Calculate"), coil_tab);
@@ -655,13 +761,18 @@ MainWindow::create_rf_calculators_tab(QTabWidget *tabs)
 	coil_length_box = create_positive_spin_box(coil_tab, 10000000.0, 3, QStringLiteral(" selected unit"), 0.10);
 	coil_turns_box = create_positive_spin_box(coil_tab, 10000.0, 2, QString(), 10.0);
 	coil_result_text = new QTextEdit(coil_tab);
-	coil_result_text->setReadOnly(true);
+	configure_form_layout(coil_layout);
+	set_widget_hint(coil_diameter_box, QStringLiteral("Coil diameter"), QStringLiteral("Air-core coil diameter in the selected length unit."));
+	set_widget_hint(coil_length_box, QStringLiteral("Coil length"), QStringLiteral("Air-core coil length in the selected length unit."));
+	set_widget_hint(coil_turns_box, QStringLiteral("Coil turns"), QStringLiteral("Number of coil turns."));
+	set_widget_hint(coil_button, QStringLiteral("Calculate air-core coil"), QStringLiteral("Updates the air-core coil inductance estimate."));
+	configure_result_text(coil_result_text, QStringLiteral("Air-core coil results"), QStringLiteral("Shows calculated coil inductance and notes."));
 	coil_layout->addRow(QStringLiteral("Diameter"), coil_diameter_box);
 	coil_layout->addRow(QStringLiteral("Coil length"), coil_length_box);
 	coil_layout->addRow(QStringLiteral("Turns"), coil_turns_box);
 	coil_layout->addRow(coil_button);
 	coil_layout->addRow(coil_result_text);
-	rf_tabs->addTab(coil_tab, QStringLiteral("Air-core coil"));
+	rf_tabs->addTab(create_scroll_area(coil_tab, rf_tabs, QStringLiteral("Air-core coil input area")), QStringLiteral("Air-core coil"));
 
 	QWidget *coax_tab = new QWidget(rf_tabs);
 	QFormLayout *coax_layout = new QFormLayout(coax_tab);
@@ -673,7 +784,14 @@ MainWindow::create_rf_calculators_tab(QTabWidget *tabs)
 	coax_swr_box = create_positive_spin_box(coax_tab, 1000.0, 3, QString(), 1.0);
 	coax_swr_box->setMinimum(1.0);
 	coax_result_text = new QTextEdit(coax_tab);
-	coax_result_text->setReadOnly(true);
+	configure_form_layout(coax_layout);
+	set_widget_hint(coax_frequency_box, QStringLiteral("Coax frequency"), QStringLiteral("Operating frequency in MHz."));
+	set_widget_hint(coax_length_box, QStringLiteral("Coax length"), QStringLiteral("Feedline length in the selected length unit."));
+	set_widget_hint(coax_loss_box, QStringLiteral("Matched coax loss"), QStringLiteral("Matched feedline loss in dB per 100 metres at the entered frequency."));
+	set_widget_hint(coax_power_box, QStringLiteral("Input power"), QStringLiteral("Transmitter power entering the feedline."));
+	set_widget_hint(coax_swr_box, QStringLiteral("Load SWR"), QStringLiteral("SWR at the load end of the feedline."));
+	set_widget_hint(coax_button, QStringLiteral("Calculate coax loss"), QStringLiteral("Updates feedline loss and delivered power estimates."));
+	configure_result_text(coax_result_text, QStringLiteral("Coax loss results"), QStringLiteral("Shows feedline loss, delivered power, notes, and warnings."));
 	coax_layout->addRow(QStringLiteral("Frequency"), coax_frequency_box);
 	coax_layout->addRow(QStringLiteral("Coax length"), coax_length_box);
 	coax_layout->addRow(QStringLiteral("Matched loss"), coax_loss_box);
@@ -681,7 +799,7 @@ MainWindow::create_rf_calculators_tab(QTabWidget *tabs)
 	coax_layout->addRow(QStringLiteral("Load SWR"), coax_swr_box);
 	coax_layout->addRow(coax_button);
 	coax_layout->addRow(coax_result_text);
-	rf_tabs->addTab(coax_tab, QStringLiteral("Coax loss"));
+	rf_tabs->addTab(create_scroll_area(coax_tab, rf_tabs, QStringLiteral("Coax loss input area")), QStringLiteral("Coax loss"));
 
 	QWidget *lc_tab = new QWidget(rf_tabs);
 	QFormLayout *lc_layout = new QFormLayout(lc_tab);
@@ -690,13 +808,18 @@ MainWindow::create_rf_calculators_tab(QTabWidget *tabs)
 	lc_capacitance_box = create_positive_spin_box(lc_tab, 10000000.0, 3, QStringLiteral(" pF"), 100.0);
 	lc_frequency_box = create_positive_spin_box(lc_tab, 300000.0, 6, QStringLiteral(" MHz"), 0.0);
 	lc_result_text = new QTextEdit(lc_tab);
-	lc_result_text->setReadOnly(true);
+	configure_form_layout(lc_layout);
+	set_widget_hint(lc_inductance_box, QStringLiteral("LC inductance"), QStringLiteral("Inductance in microhenries."));
+	set_widget_hint(lc_capacitance_box, QStringLiteral("LC capacitance"), QStringLiteral("Capacitance in picofarads."));
+	set_widget_hint(lc_frequency_box, QStringLiteral("LC reverse frequency"), QStringLiteral("Optional frequency used to solve for missing inductance or capacitance."));
+	set_widget_hint(lc_button, QStringLiteral("Calculate LC resonance"), QStringLiteral("Updates LC resonance calculations."));
+	configure_result_text(lc_result_text, QStringLiteral("LC resonance results"), QStringLiteral("Shows resonant frequency, inductance, and capacitance."));
 	lc_layout->addRow(QStringLiteral("Inductance"), lc_inductance_box);
 	lc_layout->addRow(QStringLiteral("Capacitance"), lc_capacitance_box);
 	lc_layout->addRow(QStringLiteral("Frequency for reverse"), lc_frequency_box);
 	lc_layout->addRow(lc_button);
 	lc_layout->addRow(lc_result_text);
-	rf_tabs->addTab(lc_tab, QStringLiteral("LC resonance"));
+	rf_tabs->addTab(create_scroll_area(lc_tab, rf_tabs, QStringLiteral("LC resonance input area")), QStringLiteral("LC resonance"));
 
 	QWidget *swr_tab = new QWidget(rf_tabs);
 	QFormLayout *swr_layout = new QFormLayout(swr_tab);
@@ -705,12 +828,16 @@ MainWindow::create_rf_calculators_tab(QTabWidget *tabs)
 	swr_value_box = create_positive_spin_box(swr_tab, 1000.0, 3, QString(), 2.0);
 	swr_value_box->setMinimum(1.0);
 	swr_result_text = new QTextEdit(swr_tab);
-	swr_result_text->setReadOnly(true);
+	configure_form_layout(swr_layout);
+	set_widget_hint(swr_forward_power_box, QStringLiteral("SWR forward power"), QStringLiteral("Forward power in watts."));
+	set_widget_hint(swr_value_box, QStringLiteral("SWR value"), QStringLiteral("Standing wave ratio."));
+	set_widget_hint(swr_button, QStringLiteral("Calculate SWR"), QStringLiteral("Updates reflected power and delivered power estimates."));
+	configure_result_text(swr_result_text, QStringLiteral("SWR results"), QStringLiteral("Shows reflection coefficient, reflected power, and delivered estimate."));
 	swr_layout->addRow(QStringLiteral("Forward power"), swr_forward_power_box);
 	swr_layout->addRow(QStringLiteral("SWR"), swr_value_box);
 	swr_layout->addRow(swr_button);
 	swr_layout->addRow(swr_result_text);
-	rf_tabs->addTab(swr_tab, QStringLiteral("SWR / reflected power"));
+	rf_tabs->addTab(create_scroll_area(swr_tab, rf_tabs, QStringLiteral("SWR input area")), QStringLiteral("SWR / reflected power"));
 
 	QWidget *horizon_tab = new QWidget(rf_tabs);
 	QFormLayout *horizon_layout = new QFormLayout(horizon_tab);
@@ -718,12 +845,16 @@ MainWindow::create_rf_calculators_tab(QTabWidget *tabs)
 	horizon_tx_height_box = create_positive_spin_box(horizon_tab, 10000000.0, 3, QStringLiteral(" selected unit"), 10.0);
 	horizon_rx_height_box = create_positive_spin_box(horizon_tab, 10000000.0, 3, QStringLiteral(" selected unit"), 10.0);
 	horizon_result_text = new QTextEdit(horizon_tab);
-	horizon_result_text->setReadOnly(true);
+	configure_form_layout(horizon_layout);
+	set_widget_hint(horizon_tx_height_box, QStringLiteral("Radio horizon TX height"), QStringLiteral("Transmit antenna height in the selected length unit."));
+	set_widget_hint(horizon_rx_height_box, QStringLiteral("Radio horizon RX height"), QStringLiteral("Receive antenna height in the selected length unit."));
+	set_widget_hint(horizon_button, QStringLiteral("Calculate radio horizon"), QStringLiteral("Updates radio line-of-sight horizon estimates."));
+	configure_result_text(horizon_result_text, QStringLiteral("Radio horizon results"), QStringLiteral("Shows TX, RX, and combined radio horizon distances."));
 	horizon_layout->addRow(QStringLiteral("TX antenna height"), horizon_tx_height_box);
 	horizon_layout->addRow(QStringLiteral("RX antenna height"), horizon_rx_height_box);
 	horizon_layout->addRow(horizon_button);
 	horizon_layout->addRow(horizon_result_text);
-	rf_tabs->addTab(horizon_tab, QStringLiteral("Radio horizon"));
+	rf_tabs->addTab(create_scroll_area(horizon_tab, rf_tabs, QStringLiteral("Radio horizon input area")), QStringLiteral("Radio horizon"));
 
 	root_layout->addWidget(rf_tabs);
 	tabs->addTab(rf_tab, QStringLiteral("RF Calculators"));
@@ -746,19 +877,35 @@ MainWindow::create_band_propagation_tab(QTabWidget *tabs)
 {
 	QWidget *tab = new QWidget(tabs);
 	QVBoxLayout *root_layout = new QVBoxLayout(tab);
-	QHBoxLayout *top_layout = new QHBoxLayout();
-	QFormLayout *input_layout = new QFormLayout();
-	QPushButton *update_button = new QPushButton(QStringLiteral("Update guidance"), tab);
+	QSplitter *splitter = new QSplitter(Qt::Vertical, tab);
+	QGroupBox *input_group = new QGroupBox(QStringLiteral("Inputs"), tab);
+	QFormLayout *input_layout = new QFormLayout(input_group);
+	QGroupBox *reference_group = new QGroupBox(QStringLiteral("Band reference"), tab);
+	QVBoxLayout *reference_layout = new QVBoxLayout(reference_group);
+	QGroupBox *reach_group = new QGroupBox(QStringLiteral("Reach guidance"), tab);
+	QVBoxLayout *reach_layout = new QVBoxLayout(reach_group);
+	QPushButton *update_button = new QPushButton(QStringLiteral("Update guidance"), input_group);
 
-	propagation_band_box = new QComboBox(tab);
-	propagation_band_filter_box = new QComboBox(tab);
-	propagation_mode_box = new QComboBox(tab);
-	propagation_environment_box = new QComboBox(tab);
-	propagation_tx_height_box = create_positive_spin_box(tab, 10000000.0, 3, QString(), 10.0);
-	propagation_rx_height_box = create_positive_spin_box(tab, 10000000.0, 3, QString(), 10.0);
-	propagation_power_box = create_positive_spin_box(tab, 1000000.0, 3, QStringLiteral(" W"), 0.0);
-	reference_text = new QTextEdit(tab);
-	reach_text = new QTextEdit(tab);
+	configure_form_layout(input_layout);
+
+	propagation_band_box = new QComboBox(input_group);
+	propagation_band_filter_box = new QComboBox(input_group);
+	propagation_mode_box = new QComboBox(input_group);
+	propagation_environment_box = new QComboBox(input_group);
+	propagation_tx_height_box = create_positive_spin_box(input_group, 10000000.0, 3, QString(), 10.0);
+	propagation_rx_height_box = create_positive_spin_box(input_group, 10000000.0, 3, QString(), 10.0);
+	propagation_power_box = create_positive_spin_box(input_group, 1000000.0, 3, QStringLiteral(" W"), 0.0);
+	reference_text = new QTextEdit(reference_group);
+	reach_text = new QTextEdit(reach_group);
+
+	set_widget_hint(propagation_band_filter_box, QStringLiteral("Propagation band filter"), QStringLiteral("Limits propagation band choices to amateur, broadcast, or all references."));
+	set_widget_hint(propagation_band_box, QStringLiteral("Propagation band"), QStringLiteral("Selects the band used for reference and reach guidance."));
+	set_widget_hint(propagation_mode_box, QStringLiteral("Propagation mode"), QStringLiteral("Selects the operating mode used for reach guidance."));
+	set_widget_hint(propagation_environment_box, QStringLiteral("Propagation environment"), QStringLiteral("Selects the operating environment for reach guidance."));
+	set_widget_hint(propagation_tx_height_box, QStringLiteral("Propagation TX height"), QStringLiteral("Transmit antenna height in the selected length unit."));
+	set_widget_hint(propagation_rx_height_box, QStringLiteral("Propagation RX height"), QStringLiteral("Receive antenna height in the selected length unit."));
+	set_widget_hint(propagation_power_box, QStringLiteral("Propagation power"), QStringLiteral("Optional transmit power in watts."));
+	set_widget_hint(update_button, QStringLiteral("Update propagation guidance"), QStringLiteral("Updates band reference and reach guidance output."));
 
 	propagation_band_filter_box->addItem(QStringLiteral("Amateur"), static_cast<int>(reference::BandReferenceFilter::Amateur));
 	propagation_band_filter_box->addItem(QStringLiteral("Broadcast/Reference"), static_cast<int>(reference::BandReferenceFilter::BroadcastReference));
@@ -774,7 +921,13 @@ MainWindow::create_band_propagation_tab(QTabWidget *tabs)
 	propagation_environment_box->addItem(reference::environment_profile_label(reference::EnvironmentProfile::HilltopOpen), reference::environment_profile_key(reference::EnvironmentProfile::HilltopOpen));
 
 	reference_text->setReadOnly(true);
+	reference_text->setAccessibleName(QStringLiteral("Band reference output"));
+	reference_text->setAccessibleDescription(QStringLiteral("Shows band, antenna, mode, propagation, and service notes."));
+	reference_text->setMinimumHeight(150);
 	reach_text->setReadOnly(true);
+	reach_text->setAccessibleName(QStringLiteral("Reach guidance output"));
+	reach_text->setAccessibleDescription(QStringLiteral("Shows practical reach estimate, radio horizon values, and warnings."));
+	reach_text->setMinimumHeight(150);
 	update_reference_height_inputs();
 
 	input_layout->addRow(QStringLiteral("Band filter"), propagation_band_filter_box);
@@ -786,12 +939,15 @@ MainWindow::create_band_propagation_tab(QTabWidget *tabs)
 	input_layout->addRow(QStringLiteral("Power"), propagation_power_box);
 	input_layout->addRow(update_button);
 
-	top_layout->addLayout(input_layout, 0);
-	top_layout->addWidget(reference_text, 1);
+	reference_layout->addWidget(reference_text);
+	reach_layout->addWidget(reach_text);
+	splitter->addWidget(create_scroll_area(input_group, splitter, QStringLiteral("Propagation input area")));
+	splitter->addWidget(reference_group);
+	splitter->addWidget(reach_group);
+	splitter->setChildrenCollapsible(false);
+	splitter->setSizes({210, 260, 230});
 
-	root_layout->addLayout(top_layout, 1);
-	root_layout->addWidget(new QLabel(QStringLiteral("Reach guidance"), tab));
-	root_layout->addWidget(reach_text, 1);
+	root_layout->addWidget(splitter);
 	tabs->addTab(tab, QStringLiteral("Band & Propagation"));
 
 	connect(propagation_band_filter_box, &QComboBox::currentIndexChanged, this, &MainWindow::populate_propagation_band_selector);

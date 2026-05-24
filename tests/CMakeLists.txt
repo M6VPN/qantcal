@@ -49,6 +49,10 @@ add_executable(test_lf_mf_reference
 	test_lf_mf_reference.cpp
 )
 
+add_executable(test_main_window_layout
+	test_main_window_layout.cpp
+)
+
 add_executable(test_loading_coil_calculator
 	test_loading_coil_calculator.cpp
 )
@@ -147,6 +151,11 @@ target_link_libraries(test_lf_mf_antenna_calculator
 target_link_libraries(test_lf_mf_reference
 	PRIVATE
 		qantcal_core
+)
+
+target_link_libraries(test_main_window_layout
+	PRIVATE
+		qantcal_ui
 )
 
 target_link_libraries(test_loading_coil_calculator
@@ -260,6 +269,11 @@ add_test(
 )
 
 add_test(
+	NAME test_main_window_layout
+	COMMAND test_main_window_layout
+)
+
+add_test(
 	NAME test_loading_coil_calculator
 	COMMAND test_loading_coil_calculator
 )
@@ -322,6 +336,7 @@ set_tests_properties(
 	test_lc_resonance_calculator
 	test_lf_mf_antenna_calculator
 	test_lf_mf_reference
+	test_main_window_layout
 	test_loading_coil_calculator
 	test_mode_reference
 	test_propagation_notes
