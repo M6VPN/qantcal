@@ -22,6 +22,8 @@ add_library(qantcal_core
 	calculators/rf_units.h
 	calculators/swr_calculator.cpp
 	calculators/swr_calculator.h
+	calculators/trap_calculator.cpp
+	calculators/trap_calculator.h
 	calculators/yagi_calculator.cpp
 	calculators/yagi_calculator.h
 	guides/guide_document.cpp

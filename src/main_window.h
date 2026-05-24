@@ -55,6 +55,7 @@ private:
 	void calculate_lc();
 	void calculate_horizon();
 	void calculate_swr();
+	void calculate_trap();
 	void add_current_target();
 	void apply_project_to_ui();
 	void build_project_from_ui();
@@ -122,6 +123,10 @@ private:
 	QDoubleSpinBox *lf_mf_vertical_box = nullptr;
 	QDoubleSpinBox *swr_forward_power_box = nullptr;
 	QDoubleSpinBox *swr_value_box = nullptr;
+	QDoubleSpinBox *trap_capacitance_box = nullptr;
+	QDoubleSpinBox *trap_frequency_box = nullptr;
+	QDoubleSpinBox *trap_inductance_box = nullptr;
+	QDoubleSpinBox *trap_operating_frequency_box = nullptr;
 	QDoubleSpinBox *velocity_factor_box = nullptr;
 	QDoubleSpinBox *propagation_power_box = nullptr;
 	QDoubleSpinBox *propagation_rx_height_box = nullptr;
@@ -142,6 +147,7 @@ private:
 	QTextEdit *reach_text = nullptr;
 	QTextEdit *result_text = nullptr;
 	QTextEdit *swr_result_text = nullptr;
+	QTextEdit *trap_result_text = nullptr;
 	QSpinBox *yagi_element_count_box = nullptr;
 	QListWidget *target_list = nullptr;
 	project::AntennaProject current_project;

@@ -89,6 +89,10 @@ add_executable(test_swr_calculator
 	test_swr_calculator.cpp
 )
 
+add_executable(test_trap_calculator
+	test_trap_calculator.cpp
+)
+
 add_executable(test_yagi_calculator
 	test_yagi_calculator.cpp
 )
@@ -199,6 +203,11 @@ target_link_libraries(test_rf_units
 )
 
 target_link_libraries(test_swr_calculator
+	PRIVATE
+		qantcal_core
+)
+
+target_link_libraries(test_trap_calculator
 	PRIVATE
 		qantcal_core
 )
@@ -319,6 +328,11 @@ add_test(
 )
 
 add_test(
+	NAME test_trap_calculator
+	COMMAND test_trap_calculator
+)
+
+add_test(
 	NAME test_yagi_calculator
 	COMMAND test_yagi_calculator
 )
@@ -346,6 +360,7 @@ set_tests_properties(
 	test_project_serializer
 	test_rf_units
 	test_swr_calculator
+	test_trap_calculator
 	test_yagi_calculator
 	PROPERTIES
 		ENVIRONMENT "QT_QPA_PLATFORM=offscreen"

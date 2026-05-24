@@ -33,7 +33,7 @@ test_read_only_outputs_have_accessible_names(const qantcal::MainWindow &window)
 		assert(!text_edit->accessibleName().isEmpty());
 	}
 
-	assert(output_count >= 8);
+	assert(output_count >= 9);
 }
 
 void
@@ -41,7 +41,7 @@ test_scroll_areas_are_present(const qantcal::MainWindow &window)
 {
 	const QList<QScrollArea *> scroll_areas = window.findChildren<QScrollArea *>();
 
-	assert(scroll_areas.size() >= 8);
+	assert(scroll_areas.size() >= 9);
 	for (const QScrollArea *scroll_area : scroll_areas) {
 		assert(scroll_area->widgetResizable());
 		assert(!scroll_area->accessibleName().isEmpty());
@@ -57,7 +57,7 @@ test_tabs_are_present(const qantcal::MainWindow &window)
 
 	for (const QTabWidget *tab_widget : tab_widgets) {
 		has_main_tabs = has_main_tabs || tab_widget->count() == 4;
-		has_rf_tabs = has_rf_tabs || tab_widget->count() == 5;
+		has_rf_tabs = has_rf_tabs || tab_widget->count() == 6;
 	}
 
 	assert(has_main_tabs);

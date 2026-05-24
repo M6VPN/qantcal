@@ -10,6 +10,7 @@
 #include "calculators/radio_horizon_calculator.h"
 #include "calculators/rf_units.h"
 #include "calculators/swr_calculator.h"
+#include "calculators/trap_calculator.h"
 #include "calculators/yagi_calculator.h"
 #include "design/antenna_design_view.h"
 #include "guides/guide_document.h"
@@ -752,7 +753,7 @@ MainWindow::create_rf_calculators_tab(QTabWidget *tabs)
 	QTabWidget *rf_tabs = new QTabWidget(rf_tab);
 
 	rf_tabs->setAccessibleName(QStringLiteral("RF calculator tabs"));
-	rf_tabs->setAccessibleDescription(QStringLiteral("Switches between coil, coax, LC, SWR, and radio horizon calculators."));
+	rf_tabs->setAccessibleDescription(QStringLiteral("Switches between coil, coax, LC, trap, SWR, and radio horizon calculators."));
 
 	QWidget *coil_tab = new QWidget(rf_tabs);
 	QFormLayout *coil_layout = new QFormLayout(coil_tab);
@@ -821,6 +822,29 @@ MainWindow::create_rf_calculators_tab(QTabWidget *tabs)
 	lc_layout->addRow(lc_result_text);
 	rf_tabs->addTab(create_scroll_area(lc_tab, rf_tabs, QStringLiteral("LC resonance input area")), QStringLiteral("LC resonance"));
 
+	QWidget *trap_tab = new QWidget(rf_tabs);
+	QFormLayout *trap_layout = new QFormLayout(trap_tab);
+	QPushButton *trap_button = new QPushButton(QStringLiteral("Calculate"), trap_tab);
+	trap_frequency_box = create_positive_spin_box(trap_tab, 300000.0, 6, QStringLiteral(" MHz"), 0.0);
+	trap_inductance_box = create_positive_spin_box(trap_tab, 1000000.0, 6, QStringLiteral(" uH"), 1.0);
+	trap_capacitance_box = create_positive_spin_box(trap_tab, 10000000.0, 3, QStringLiteral(" pF"), 100.0);
+	trap_operating_frequency_box = create_positive_spin_box(trap_tab, 300000.0, 6, QStringLiteral(" MHz"), 7.1);
+	trap_result_text = new QTextEdit(trap_tab);
+	configure_form_layout(trap_layout);
+	set_widget_hint(trap_frequency_box, QStringLiteral("Trap reverse frequency"), QStringLiteral("Optional trap resonance frequency used to solve for missing inductance or capacitance."));
+	set_widget_hint(trap_inductance_box, QStringLiteral("Trap inductance"), QStringLiteral("Trap coil inductance in microhenries."));
+	set_widget_hint(trap_capacitance_box, QStringLiteral("Trap capacitance"), QStringLiteral("Trap capacitance in picofarads."));
+	set_widget_hint(trap_operating_frequency_box, QStringLiteral("Trap operating frequency"), QStringLiteral("Optional frequency used to show component reactance away from resonance."));
+	set_widget_hint(trap_button, QStringLiteral("Calculate trap"), QStringLiteral("Updates ideal parallel LC trap calculations."));
+	configure_result_text(trap_result_text, QStringLiteral("Trap calculator results"), QStringLiteral("Shows trap resonance, component values, reactance, notes, and warnings."));
+	trap_layout->addRow(QStringLiteral("Frequency for reverse"), trap_frequency_box);
+	trap_layout->addRow(QStringLiteral("Inductance"), trap_inductance_box);
+	trap_layout->addRow(QStringLiteral("Capacitance"), trap_capacitance_box);
+	trap_layout->addRow(QStringLiteral("Operating frequency"), trap_operating_frequency_box);
+	trap_layout->addRow(trap_button);
+	trap_layout->addRow(trap_result_text);
+	rf_tabs->addTab(create_scroll_area(trap_tab, rf_tabs, QStringLiteral("Trap calculator input area")), QStringLiteral("Trap"));
+
 	QWidget *swr_tab = new QWidget(rf_tabs);
 	QFormLayout *swr_layout = new QFormLayout(swr_tab);
 	QPushButton *swr_button = new QPushButton(QStringLiteral("Calculate"), swr_tab);
@@ -862,12 +886,14 @@ MainWindow::create_rf_calculators_tab(QTabWidget *tabs)
 	connect(coil_button, &QPushButton::clicked, this, &MainWindow::calculate_coil);
 	connect(coax_button, &QPushButton::clicked, this, &MainWindow::calculate_coax_loss);
 	connect(lc_button, &QPushButton::clicked, this, &MainWindow::calculate_lc);
+	connect(trap_button, &QPushButton::clicked, this, &MainWindow::calculate_trap);
 	connect(swr_button, &QPushButton::clicked, this, &MainWindow::calculate_swr);
 	connect(horizon_button, &QPushButton::clicked, this, &MainWindow::calculate_horizon);
 
 	calculate_coil();
 	calculate_coax_loss();
 	calculate_lc();
+	calculate_trap();
 	calculate_swr();
 	calculate_horizon();
 }
@@ -1644,6 +1670,47 @@ MainWindow::calculate_lc()
 			.arg(result.inductance_uh, 0, 'f', 6)
 			.arg(result.capacitance_pf, 0, 'f', 3)
 	);
+}
+
+void
+MainWindow::calculate_trap()
+{
+	calculators::TrapCalculationInput input;
+
+	input.inductance_uh = trap_inductance_box->value();
+	input.capacitance_pf = trap_capacitance_box->value();
+	input.frequency_mhz = trap_frequency_box->value();
+	input.operating_frequency_mhz = trap_operating_frequency_box->value();
+
+	if (input.frequency_mhz > 0.0 && input.capacitance_pf > 0.0 && input.inductance_uh <= 0.0)
+		input.mode = calculators::TrapCalculationMode::InductanceFromFrequencyCapacitance;
+	else if (input.frequency_mhz > 0.0 && input.inductance_uh > 0.0 && input.capacitance_pf <= 0.0)
+		input.mode = calculators::TrapCalculationMode::CapacitanceFromFrequencyInductance;
+	else
+		input.mode = calculators::TrapCalculationMode::FrequencyFromLC;
+
+	const calculators::TrapCalculationResult result = calculators::calculate_trap(input);
+	if (!result.ok) {
+		trap_result_text->setPlainText(QStringLiteral("Input error: %1").arg(result.error_message));
+		return;
+	}
+
+	QString text;
+	text += QStringLiteral("Trap resonance: %1 MHz\n").arg(result.frequency_mhz, 0, 'f', 6);
+	text += QStringLiteral("Trap resonance: %1 kHz\n").arg(result.frequency_khz, 0, 'f', 3);
+	text += QStringLiteral("Inductance: %1 uH\n").arg(result.inductance_uh, 0, 'f', 6);
+	text += QStringLiteral("Capacitance: %1 pF\n").arg(result.capacitance_pf, 0, 'f', 3);
+	text += QStringLiteral("Component reactance at resonance: %1 ohms\n").arg(result.reactance_ohms, 0, 'f', 3);
+	if (result.has_operating_reactance) {
+		text += QStringLiteral("\nAt %1 MHz:\n").arg(result.operating_frequency_mhz, 0, 'f', 6);
+		text += QStringLiteral("Inductive reactance: %1 ohms\n").arg(result.operating_inductive_reactance_ohms, 0, 'f', 3);
+		text += QStringLiteral("Capacitive reactance: %1 ohms\n").arg(result.operating_capacitive_reactance_ohms, 0, 'f', 3);
+	}
+	text += QStringLiteral("\n%1").arg(result.note);
+	if (!result.warnings.isEmpty())
+		text += QStringLiteral("\n\nWarnings:\n%1").arg(result.warnings.join(QStringLiteral("\n")));
+
+	trap_result_text->setPlainText(text);
 }
 
 void
