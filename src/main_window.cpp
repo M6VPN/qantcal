@@ -26,17 +26,21 @@
 #include "reference/mode_reference.h"
 #include "reference/propagation_notes.h"
 #include "reference/reach_estimator.h"
+#include "reference/tropo_map_reference.h"
 #include "settings/translation_manager.h"
 
 #include <QAction>
 #include <QActionGroup>
 #include <QCheckBox>
 #include <QComboBox>
+#include <QDir>
 #include <QDoubleSpinBox>
+#include <QFile>
 #include <QFileDialog>
 #include <QFormLayout>
 #include <QFrame>
 #include <QGraphicsView>
+#include <QGridLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QKeySequence>
@@ -45,6 +49,10 @@
 #include <QListWidget>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QNetworkRequest>
+#include <QPixmap>
 #include <QPrintDialog>
 #include <QPrinter>
 #include <QPushButton>
@@ -54,8 +62,10 @@
 #include <QSplitter>
 #include <QSpinBox>
 #include <QStatusBar>
+#include <QStandardPaths>
 #include <QTabWidget>
 #include <QTextEdit>
+#include <QUrl>
 #include <QValidator>
 #include <QVBoxLayout>
 #include <QCloseEvent>
@@ -769,12 +779,13 @@ MainWindow::create_central_widget()
 	main_tabs = tabs;
 
 	tabs->setAccessibleName(QStringLiteral("qantcal calculator tabs"));
-	tabs->setAccessibleDescription(QStringLiteral("Switches between antenna, LF/MF, RF, and propagation calculators."));
+	tabs->setAccessibleDescription(QStringLiteral("Switches between antenna, LF/MF, RF, propagation, and atmospheric map tools."));
 
 	create_antenna_tab(tabs);
 	create_lf_mf_tab(tabs);
 	create_rf_calculators_tab(tabs);
 	create_band_propagation_tab(tabs);
+	create_atmospheric_tab(tabs);
 
 	root_layout->addWidget(tabs);
 	setCentralWidget(central);
@@ -1400,6 +1411,173 @@ MainWindow::create_band_propagation_tab(QTabWidget *tabs)
 	connect(update_button, &QPushButton::clicked, this, &MainWindow::update_reference_panel);
 
 	update_reference_panel();
+}
+
+void
+MainWindow::create_atmospheric_tab(QTabWidget *tabs)
+{
+	QWidget *tab = new QWidget(tabs);
+	QVBoxLayout *root_layout = new QVBoxLayout(tab);
+	QGroupBox *controls_group = new QGroupBox(QStringLiteral("Hepburn tropo forecast"), tab);
+	QFormLayout *controls_layout = new QFormLayout(controls_group);
+	QGroupBox *key_group = new QGroupBox(QStringLiteral("Hepburn Tropo Index colour key"), tab);
+	QGridLayout *key_layout = new QGridLayout(key_group);
+	QScrollArea *map_scroll_area = new QScrollArea(tab);
+
+	configure_form_layout(controls_layout);
+
+	tropo_region_box = new QComboBox(controls_group);
+	tropo_forecast_box = new QComboBox(controls_group);
+	tropo_refresh_button = new QPushButton(QStringLiteral("Refresh map"), controls_group);
+	tropo_status_label = new QLabel(controls_group);
+	tropo_map_label = new QLabel(map_scroll_area);
+	tropo_network_manager = new QNetworkAccessManager(this);
+
+	for (int i = 0; i < reference::tropo_map_regions().size(); ++i) {
+		const reference::TropoMapRegion &region = reference::tropo_map_regions()[i];
+		tropo_region_box->addItem(region.label, i);
+		if (region.code == QStringLiteral("eur"))
+			tropo_region_box->setCurrentIndex(i);
+	}
+	for (int forecast_hour : reference::tropo_forecast_hours())
+		tropo_forecast_box->addItem(QStringLiteral("+%1 hours").arg(forecast_hour), forecast_hour);
+
+	tropo_status_label->setWordWrap(true);
+	tropo_map_label->setAlignment(Qt::AlignCenter);
+	tropo_map_label->setMinimumSize(820, 640);
+	tropo_map_label->setText(QStringLiteral("Map not loaded"));
+	tropo_map_label->setAccessibleName(QStringLiteral("Tropo forecast map image"));
+	tropo_map_label->setAccessibleDescription(QStringLiteral("Displays the selected remote Hepburn tropo forecast map image."));
+	map_scroll_area->setWidget(tropo_map_label);
+	map_scroll_area->setWidgetResizable(true);
+	map_scroll_area->setAccessibleName(QStringLiteral("Tropo map image area"));
+
+	set_widget_hint(tropo_region_box, QStringLiteral("Tropo map region"), QStringLiteral("Selects the DX Info Centre tropo forecast region."));
+	set_widget_hint(tropo_forecast_box, QStringLiteral("Tropo forecast offset"), QStringLiteral("Selects the forecast image offset in hours."));
+	set_widget_hint(tropo_refresh_button, QStringLiteral("Refresh tropo map"), QStringLiteral("Downloads the selected map again and updates the daily cache."));
+	set_widget_hint(tropo_status_label, QStringLiteral("Tropo map status"), QStringLiteral("Shows the selected image URL, cache path, and download status."));
+
+	controls_layout->addRow(QStringLiteral("Region"), tropo_region_box);
+	controls_layout->addRow(QStringLiteral("Forecast"), tropo_forecast_box);
+	controls_layout->addRow(tropo_refresh_button);
+	controls_layout->addRow(tropo_status_label);
+
+	int column = 0;
+	for (const reference::TropoMapLevel &level : reference::tropo_map_levels()) {
+		QLabel *swatch = new QLabel(QString::number(level.index), key_group);
+		QLabel *label = new QLabel(level.label, key_group);
+
+		swatch->setAlignment(Qt::AlignCenter);
+		swatch->setMinimumSize(42, 24);
+		swatch->setStyleSheet(QStringLiteral("background:%1; color:%2; font-weight:bold; border:1px solid #555;")
+			.arg(level.colour_hex)
+			.arg(level.index == 0 ? QStringLiteral("#ffffff") : QStringLiteral("#000000")));
+		key_layout->addWidget(swatch, 0, column);
+		key_layout->addWidget(label, 1, column);
+		++column;
+	}
+
+	root_layout->addWidget(controls_group);
+	root_layout->addWidget(map_scroll_area, 1);
+	root_layout->addWidget(key_group);
+	tabs->addTab(tab, tr("Atmospheric Maps"));
+
+	connect(tropo_region_box, &QComboBox::currentIndexChanged, this, [this]() { update_tropo_map(false); });
+	connect(tropo_forecast_box, &QComboBox::currentIndexChanged, this, [this]() { update_tropo_map(false); });
+	connect(tropo_refresh_button, &QPushButton::clicked, this, [this]() { update_tropo_map(true); });
+
+	update_tropo_map(false);
+}
+
+QString
+MainWindow::tropo_cache_path() const
+{
+	if (tropo_region_box == nullptr || tropo_forecast_box == nullptr)
+		return QString();
+
+	const int region_index = tropo_region_box->currentData().toInt();
+	const QVector<reference::TropoMapRegion> &regions = reference::tropo_map_regions();
+	if (region_index < 0 || region_index >= regions.size())
+		return QString();
+
+	QString cache_root = QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
+	if (cache_root.isEmpty())
+		cache_root = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
+	if (cache_root.isEmpty())
+		cache_root = QDir::currentPath();
+
+	const QDate date = QDateTime::currentDateTimeUtc().date();
+	QDir cache_dir(cache_root);
+	cache_dir.mkpath(QStringLiteral("tropo_maps"));
+	cache_dir.cd(QStringLiteral("tropo_maps"));
+
+	return cache_dir.filePath(reference::tropo_cache_file_name(
+		regions[region_index],
+		tropo_forecast_box->currentData().toInt(),
+		date
+	));
+}
+
+void
+MainWindow::update_tropo_map(bool force_refresh)
+{
+	if (tropo_region_box == nullptr || tropo_forecast_box == nullptr || tropo_map_label == nullptr || tropo_status_label == nullptr)
+		return;
+
+	const int region_index = tropo_region_box->currentData().toInt();
+	const QVector<reference::TropoMapRegion> &regions = reference::tropo_map_regions();
+	if (region_index < 0 || region_index >= regions.size())
+		return;
+
+	const reference::TropoMapRegion region = regions[region_index];
+	const int forecast_hour = tropo_forecast_box->currentData().toInt();
+	const QDate date = QDateTime::currentDateTimeUtc().date();
+	const QUrl url = reference::tropo_map_url(region, forecast_hour, date);
+	const QString cache_path = tropo_cache_path();
+	const QString source_page = QStringLiteral("https://www.dxinfocentre.com/%1").arg(region.page_path);
+
+	if (!force_refresh && QFile::exists(cache_path)) {
+		QPixmap pixmap(cache_path);
+		if (!pixmap.isNull()) {
+			tropo_map_label->setPixmap(pixmap);
+			tropo_map_label->adjustSize();
+			tropo_status_label->setText(QStringLiteral("Loaded daily cache: %1\nSource: %2\nImage: %3")
+				.arg(cache_path)
+				.arg(source_page)
+				.arg(url.toString()));
+			return;
+		}
+	}
+
+	tropo_status_label->setText(QStringLiteral("Downloading: %1").arg(url.toString()));
+	QNetworkRequest request(url);
+	request.setRawHeader("User-Agent", "qantcal/0.1");
+	QNetworkReply *reply = tropo_network_manager->get(request);
+
+	connect(reply, &QNetworkReply::finished, this, [this, reply, cache_path, source_page, url]() {
+		const QByteArray data = reply->readAll();
+		const bool network_ok = reply->error() == QNetworkReply::NoError;
+		reply->deleteLater();
+
+		QPixmap pixmap;
+		if (!network_ok || !pixmap.loadFromData(data, "PNG")) {
+			tropo_status_label->setText(QStringLiteral("Map download failed: %1\nSource: %2")
+				.arg(url.toString())
+				.arg(source_page));
+			return;
+		}
+
+		QFile file(cache_path);
+		if (file.open(QIODevice::WriteOnly))
+			file.write(data);
+
+		tropo_map_label->setPixmap(pixmap);
+		tropo_map_label->adjustSize();
+		tropo_status_label->setText(QStringLiteral("Downloaded and cached: %1\nSource: %2\nImage: %3")
+			.arg(cache_path)
+			.arg(source_page)
+			.arg(url.toString()));
+	});
 }
 
 void
@@ -2324,6 +2502,7 @@ MainWindow::retranslate_shell()
 		main_tabs->setTabText(1, tr("LF/MF Antennas"));
 		main_tabs->setTabText(2, tr("RF Calculators"));
 		main_tabs->setTabText(3, tr("Band & Propagation"));
+		main_tabs->setTabText(4, tr("Atmospheric Maps"));
 	}
 	if (rf_tabs != nullptr) {
 		rf_tabs->setTabText(0, tr("Air-core coil"));

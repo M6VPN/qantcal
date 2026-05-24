@@ -14,7 +14,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(GNUInstallDirs)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets PrintSupport)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Network PrintSupport)
 qt_standard_project_setup()
 
 find_program(LRELEASE_EXECUTABLE NAMES lrelease lrelease-qt6)

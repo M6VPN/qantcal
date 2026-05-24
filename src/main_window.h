@@ -22,6 +22,7 @@ class QLineEdit;
 class QListWidget;
 class QListWidgetItem;
 class QMenu;
+class QNetworkAccessManager;
 class QPushButton;
 class QSpinBox;
 class QTabWidget;
@@ -45,6 +46,7 @@ private:
 	void configure_length_input();
 	void create_actions();
 	void create_antenna_tab(QTabWidget *tabs);
+	void create_atmospheric_tab(QTabWidget *tabs);
 	void create_central_widget();
 	void create_band_propagation_tab(QTabWidget *tabs);
 	void create_lf_mf_tab(QTabWidget *tabs);
@@ -94,7 +96,9 @@ private:
 	void update_reference_height_inputs();
 	void update_lf_mf_length_inputs();
 	void update_target_list();
+	void update_tropo_map(bool force_refresh = false);
 	void update_yagi_controls();
+	QString tropo_cache_path() const;
 	double project_restore_frequency_mhz() const;
 	calculators::AntennaCalculationInput current_input() const;
 	calculators::YagiDesignInput current_yagi_input() const;
@@ -113,6 +117,8 @@ private:
 	QComboBox *propagation_band_filter_box = nullptr;
 	QComboBox *propagation_environment_box = nullptr;
 	QComboBox *propagation_mode_box = nullptr;
+	QComboBox *tropo_forecast_box = nullptr;
+	QComboBox *tropo_region_box = nullptr;
 	QComboBox *yagi_preset_box = nullptr;
 	QMenu *edit_menu = nullptr;
 	QMenu *file_menu = nullptr;
@@ -169,6 +175,9 @@ private:
 	QGroupBox *yagi_group = nullptr;
 	QLineEdit *project_title_box = nullptr;
 	QPushButton *calculate_button = nullptr;
+	QPushButton *tropo_refresh_button = nullptr;
+	QLabel *tropo_map_label = nullptr;
+	QLabel *tropo_status_label = nullptr;
 	QTextEdit *choke_result_text = nullptr;
 	QTextEdit *coil_result_text = nullptr;
 	QTextEdit *coax_result_text = nullptr;
@@ -194,6 +203,7 @@ private:
 	design::AntennaDesignScene *design_scene = nullptr;
 	bool project_dirty = false;
 	settings::AppSettings app_settings;
+	QNetworkAccessManager *tropo_network_manager = nullptr;
 	QUndoStack *undo_stack = nullptr;
 };
 

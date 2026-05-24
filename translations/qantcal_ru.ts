@@ -157,5 +157,9 @@
 		<source>Band &amp; Propagation</source>
 		<translation>Диапазон и прохождение</translation>
 	</message>
+	<message>
+		<source>Atmospheric Maps</source>
+		<translation>Атмосферные карты</translation>
+	</message>
 </context>
 </TS>

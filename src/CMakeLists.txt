@@ -60,6 +60,8 @@ add_library(qantcal_core
 	reference/propagation_notes.h
 	reference/reach_estimator.cpp
 	reference/reach_estimator.h
+	reference/tropo_map_reference.cpp
+	reference/tropo_map_reference.h
 	settings/app_settings.cpp
 	settings/app_settings.h
 	settings/translation_manager.cpp
@@ -101,6 +103,7 @@ target_include_directories(qantcal_ui
 target_link_libraries(qantcal_ui
 	PUBLIC
 		qantcal_core
+		Qt6::Network
 		Qt6::Widgets
 )
 
