@@ -21,6 +21,10 @@ add_executable(test_coil_calculator
 	test_coil_calculator.cpp
 )
 
+add_executable(test_coax_loss_calculator
+	test_coax_loss_calculator.cpp
+)
+
 add_executable(test_ham_band
 	test_ham_band.cpp
 )
@@ -106,6 +110,11 @@ target_link_libraries(test_broadcast_band_reference
 )
 
 target_link_libraries(test_coil_calculator
+	PRIVATE
+		qantcal_core
+)
+
+target_link_libraries(test_coax_loss_calculator
 	PRIVATE
 		qantcal_core
 )
@@ -216,6 +225,11 @@ add_test(
 )
 
 add_test(
+	NAME test_coax_loss_calculator
+	COMMAND test_coax_loss_calculator
+)
+
+add_test(
 	NAME test_ham_band
 	COMMAND test_ham_band
 )
@@ -301,6 +315,7 @@ set_tests_properties(
 	test_band_reference
 	test_broadcast_band_reference
 	test_coil_calculator
+	test_coax_loss_calculator
 	test_ham_band
 	test_guide_document
 	test_guide_renderer

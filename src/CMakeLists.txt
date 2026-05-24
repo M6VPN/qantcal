@@ -6,6 +6,8 @@ add_library(qantcal_core
 	calculators/antenna_calculator.h
 	calculators/coil_calculator.cpp
 	calculators/coil_calculator.h
+	calculators/coax_loss_calculator.cpp
+	calculators/coax_loss_calculator.h
 	calculators/ham_band.cpp
 	calculators/ham_band.h
 	calculators/lf_mf_antenna_calculator.cpp

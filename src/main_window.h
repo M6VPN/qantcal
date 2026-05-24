@@ -51,6 +51,7 @@ private:
 	void calculate_lf_mf();
 	void calculate_lf_mf(bool update_project);
 	void calculate_coil();
+	void calculate_coax_loss();
 	void calculate_lc();
 	void calculate_horizon();
 	void calculate_swr();
@@ -104,6 +105,11 @@ private:
 	QDoubleSpinBox *coil_diameter_box = nullptr;
 	QDoubleSpinBox *coil_length_box = nullptr;
 	QDoubleSpinBox *coil_turns_box = nullptr;
+	QDoubleSpinBox *coax_frequency_box = nullptr;
+	QDoubleSpinBox *coax_length_box = nullptr;
+	QDoubleSpinBox *coax_loss_box = nullptr;
+	QDoubleSpinBox *coax_power_box = nullptr;
+	QDoubleSpinBox *coax_swr_box = nullptr;
 	QDoubleSpinBox *horizon_rx_height_box = nullptr;
 	QDoubleSpinBox *horizon_tx_height_box = nullptr;
 	QDoubleSpinBox *lc_capacitance_box = nullptr;
@@ -127,6 +133,7 @@ private:
 	QLineEdit *project_title_box = nullptr;
 	QPushButton *calculate_button = nullptr;
 	QTextEdit *coil_result_text = nullptr;
+	QTextEdit *coax_result_text = nullptr;
 	QTextEdit *horizon_result_text = nullptr;
 	QTextEdit *lc_result_text = nullptr;
 	QTextEdit *lf_mf_result_text = nullptr;

@@ -4,6 +4,7 @@
 #include "main_window.h"
 
 #include "calculators/coil_calculator.h"
+#include "calculators/coax_loss_calculator.h"
 #include "calculators/lf_mf_antenna_calculator.h"
 #include "calculators/lc_resonance_calculator.h"
 #include "calculators/radio_horizon_calculator.h"
@@ -236,6 +237,9 @@ MainWindow::change_length_unit(int index)
 	const double lf_mf_horizontal_m = lf_mf_horizontal_box != nullptr
 		? calculators::length_unit_to_metres(lf_mf_horizontal_box->value(), current_length_unit)
 		: 0.0;
+	const double coax_length_m = coax_length_box != nullptr
+		? calculators::length_unit_to_metres(coax_length_box->value(), current_length_unit)
+		: 0.0;
 
 	current_length_unit = new_unit;
 	configure_length_input();
@@ -274,6 +278,10 @@ MainWindow::change_length_unit(int index)
 			lf_mf_horizontal_box->setValue(calculators::metres_to_length_unit(lf_mf_horizontal_m, current_length_unit));
 		}
 	}
+	if (coax_length_box != nullptr) {
+		const QSignalBlocker blocker(coax_length_box);
+		coax_length_box->setValue(calculators::metres_to_length_unit(coax_length_m, current_length_unit));
+	}
 
 	app_settings.set_length_unit(current_length_unit);
 	current_project.preferred_length_unit = current_length_unit;
@@ -281,6 +289,7 @@ MainWindow::change_length_unit(int index)
 	calculate();
 	update_reference_panel();
 	calculate_lf_mf();
+	calculate_coax_loss();
 	statusBar()->showMessage(
 		QStringLiteral("Length unit set to %1")
 			.arg(QString::fromStdString(calculators::length_unit_label(current_length_unit)))
@@ -329,6 +338,11 @@ MainWindow::configure_length_input()
 	yagi_boom_correction_box->setSingleStep(length_box->singleStep());
 	update_reference_height_inputs();
 	update_lf_mf_length_inputs();
+	if (coax_length_box != nullptr) {
+		coax_length_box->setSuffix(length_box->suffix());
+		coax_length_box->setDecimals(length_box->decimals());
+		coax_length_box->setSingleStep(length_box->singleStep());
+	}
 }
 
 void
@@ -649,6 +663,26 @@ MainWindow::create_rf_calculators_tab(QTabWidget *tabs)
 	coil_layout->addRow(coil_result_text);
 	rf_tabs->addTab(coil_tab, QStringLiteral("Air-core coil"));
 
+	QWidget *coax_tab = new QWidget(rf_tabs);
+	QFormLayout *coax_layout = new QFormLayout(coax_tab);
+	QPushButton *coax_button = new QPushButton(QStringLiteral("Calculate"), coax_tab);
+	coax_frequency_box = create_positive_spin_box(coax_tab, 300000.0, 6, QStringLiteral(" MHz"), 144.3);
+	coax_length_box = create_positive_spin_box(coax_tab, 10000000.0, 3, QStringLiteral(" selected unit"), 30.0);
+	coax_loss_box = create_positive_spin_box(coax_tab, 1000.0, 3, QStringLiteral(" dB / 100 m"), 4.5);
+	coax_power_box = create_positive_spin_box(coax_tab, 1000000.0, 3, QStringLiteral(" W"), 100.0);
+	coax_swr_box = create_positive_spin_box(coax_tab, 1000.0, 3, QString(), 1.0);
+	coax_swr_box->setMinimum(1.0);
+	coax_result_text = new QTextEdit(coax_tab);
+	coax_result_text->setReadOnly(true);
+	coax_layout->addRow(QStringLiteral("Frequency"), coax_frequency_box);
+	coax_layout->addRow(QStringLiteral("Coax length"), coax_length_box);
+	coax_layout->addRow(QStringLiteral("Matched loss"), coax_loss_box);
+	coax_layout->addRow(QStringLiteral("Input power"), coax_power_box);
+	coax_layout->addRow(QStringLiteral("Load SWR"), coax_swr_box);
+	coax_layout->addRow(coax_button);
+	coax_layout->addRow(coax_result_text);
+	rf_tabs->addTab(coax_tab, QStringLiteral("Coax loss"));
+
 	QWidget *lc_tab = new QWidget(rf_tabs);
 	QFormLayout *lc_layout = new QFormLayout(lc_tab);
 	QPushButton *lc_button = new QPushButton(QStringLiteral("Calculate"), lc_tab);
@@ -695,11 +729,13 @@ MainWindow::create_rf_calculators_tab(QTabWidget *tabs)
 	tabs->addTab(rf_tab, QStringLiteral("RF Calculators"));
 
 	connect(coil_button, &QPushButton::clicked, this, &MainWindow::calculate_coil);
+	connect(coax_button, &QPushButton::clicked, this, &MainWindow::calculate_coax_loss);
 	connect(lc_button, &QPushButton::clicked, this, &MainWindow::calculate_lc);
 	connect(swr_button, &QPushButton::clicked, this, &MainWindow::calculate_swr);
 	connect(horizon_button, &QPushButton::clicked, this, &MainWindow::calculate_horizon);
 
 	calculate_coil();
+	calculate_coax_loss();
 	calculate_lc();
 	calculate_swr();
 	calculate_horizon();
@@ -1315,6 +1351,39 @@ MainWindow::calculate_coil()
 			.arg(result.inductance_uh, 0, 'f', 3)
 			.arg(QString::fromStdString(result.note))
 	);
+}
+
+void
+MainWindow::calculate_coax_loss()
+{
+	if (coax_result_text == nullptr)
+		return;
+
+	calculators::CoaxLossInput input;
+
+	input.frequency_mhz = coax_frequency_box->value();
+	input.length_metres = calculators::length_unit_to_metres(coax_length_box->value(), current_length_unit);
+	input.loss_db_per_100m = coax_loss_box->value();
+	input.input_power_watts = coax_power_box->value();
+	input.swr = coax_swr_box->value();
+
+	const calculators::CoaxLossResult result = calculators::calculate_coax_loss(input);
+	if (!result.ok) {
+		coax_result_text->setPlainText(QStringLiteral("Input error: %1").arg(result.error_message));
+		return;
+	}
+
+	QString text;
+	text += QStringLiteral("Matched coax loss: %1 dB\n").arg(result.matched_loss_db, 0, 'f', 3);
+	text += QStringLiteral("Additional SWR loss: %1 dB\n").arg(result.additional_swr_loss_db, 0, 'f', 3);
+	text += QStringLiteral("Total estimated loss: %1 dB\n").arg(result.total_loss_db, 0, 'f', 3);
+	text += QStringLiteral("Delivered power: %1 W\n").arg(result.delivered_power_watts, 0, 'f', 3);
+	text += QStringLiteral("Power lost: %1%\n\n").arg(result.loss_percent, 0, 'f', 2);
+	text += result.note;
+	if (!result.warnings.isEmpty())
+		text += QStringLiteral("\n\nWarnings:\n%1").arg(result.warnings.join(QStringLiteral("\n")));
+
+	coax_result_text->setPlainText(text);
 }
 
 void
